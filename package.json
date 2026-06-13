@@ -1,10 +1,10 @@
 {
   "name": "nedb-studio",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "Prompt-to-database scaffolding for agent-native applications. A Portal-powered workspace over the NEDB engine.",
-  "license": "Apache-2.0",
+  "license": "GPL-3.0-or-later",
   "scripts": {
     "dev": "concurrently -n web,api -c cyan,magenta \"portal dev\" \"npm run dev:api\"",
     "dev:web": "portal dev",

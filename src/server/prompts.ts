@@ -112,3 +112,47 @@ export function extractJson(text: string): unknown {
   }
   return JSON.parse(candidate.slice(start, end + 1));
 }
+
+// ── Natural language → NQL (the query console) ────────────────────────────────
+
+interface SchemaLite {
+  collections: Array<{ name: string; fields: Array<{ name: string; type: string }> }>;
+  relations: Array<{ from: string; relation: string; to: string }>;
+  indexes?: Array<{ collection: string; field: string; kind: string }>;
+}
+
+export function nqlSystem(schema: SchemaLite): string {
+  const cols = schema.collections
+    .map((c) => `- ${c.name}(${c.fields.map((f) => f.name).join(", ")})`)
+    .join("\n");
+  const rels = schema.relations.length
+    ? schema.relations.map((r) => `- ${r.from} --${r.relation}--> ${r.to}`).join("\n")
+    : "- (none)";
+  return [
+    "You translate a natural-language request into a SINGLE NQL query for the NEDB engine.",
+    "Output ONLY the NQL query on one line — no markdown, no quotes, no prose, no explanation.",
+    "",
+    "NQL grammar:",
+    'FROM <collection> [AS OF <seq>] [WHERE <field> <op> <value> (AND <field> <op> <value>)*] [SEARCH "<text>"] [ORDER BY <field> [ASC|DESC]] [TRAVERSE <relation>] [LIMIT <n>]',
+    "op ∈ = != < <= > >= . String values use double quotes. Only reference declared collections/fields.",
+    "",
+    "Collections and fields:",
+    cols,
+    "Relations (for TRAVERSE):",
+    rels,
+  ].join("\n");
+}
+
+export function nqlMessages(prompt: string): Array<{ role: "user"; content: string }> {
+  return [{ role: "user", content: `Translate this to one NQL query: ${prompt}` }];
+}
+
+/** Pull a clean single-line NQL query out of a model response. */
+export function extractNql(text: string): string {
+  let t = text.trim();
+  const fence = t.match(/```(?:\w+)?\s*([\s\S]*?)```/);
+  if (fence) t = fence[1].trim();
+  const lines = t.split("\n").map((l) => l.trim()).filter(Boolean);
+  const fromLine = lines.find((l) => /^from\s/i.test(l));
+  return (fromLine ?? lines[0] ?? t).replace(/^["'`]+|["'`;]+$/g, "").trim();
+}

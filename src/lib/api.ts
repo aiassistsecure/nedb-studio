@@ -33,3 +33,23 @@ export async function generate(
   }
   return (await res.json()) as GenerateResponse;
 }
+
+export interface CompileNqlResult {
+  nql: string;
+  mode: "mock" | "live";
+  error?: string;
+}
+
+/** Natural language → NQL. Schema is {collections, relations, indexes}. */
+export async function compileNql(prompt: string, schema: unknown): Promise<CompileNqlResult> {
+  const res = await fetch("/api/nql", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt, schema }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`/api/nql -> ${res.status}: ${text}`);
+  }
+  return (await res.json()) as CompileNqlResult;
+}

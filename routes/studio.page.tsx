@@ -5,6 +5,7 @@ import { Nav } from "../src/components/Nav";
 import { Marquee } from "../src/components/Marquee";
 import { PromptPanel } from "../src/components/PromptPanel";
 import { SchemaGraph } from "../src/components/SchemaGraph";
+import { QueryConsole } from "../src/components/QueryConsole";
 import { ArtifactTabs } from "../src/components/ArtifactTabs";
 import { generate, getProviders, getStatus } from "../src/lib/api";
 import type { NEDBScaffold, ProviderInfo } from "../src/lib/types";
@@ -28,6 +29,7 @@ export default function StudioPage(): React.ReactElement {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notes, setNotes] = useState<string[]>([]);
+  const [centerTab, setCenterTab] = useState<"schema" | "query">("schema");
   const autoRan = useRef(false);
 
   // Load provider/model catalog + mode from the server (which holds the key).
@@ -124,20 +126,36 @@ export default function StudioPage(): React.ReactElement {
             </div>
           ) : null}
           {scaffold ? (
-            <div className="h-full min-h-[420px] w-full">
-              <div className="flex items-center justify-between px-5 py-3">
-                <div>
-                  <h1 className="text-lg font-bold">{scaffold.appName}</h1>
-                  <p className="text-xs text-slate-400">{scaffold.description}</p>
+            <div className="flex h-full flex-col">
+              <div className="flex items-center justify-between gap-3 px-5 py-3">
+                <div className="min-w-0">
+                  <h1 className="truncate text-lg font-bold">{scaffold.appName}</h1>
+                  <p className="truncate text-xs text-slate-400">{scaffold.description}</p>
                 </div>
-                <div className="flex gap-3 font-mono text-[11px] text-slate-500">
-                  <span>{scaffold.collections.length} collections</span>
-                  <span>{scaffold.relations.length} relations</span>
-                  <span>{scaffold.indexes.length} indexes</span>
+                <div className="flex items-center gap-3">
+                  <div className="hidden gap-3 font-mono text-[11px] text-slate-500 sm:flex">
+                    <span>{scaffold.collections.length} coll</span>
+                    <span>{scaffold.relations.length} rel</span>
+                    <span>{scaffold.indexes.length} idx</span>
+                  </div>
+                  <div className="flex rounded-lg border border-white/10 p-0.5 text-xs">
+                    <button
+                      onClick={() => setCenterTab("schema")}
+                      className={"rounded-md px-3 py-1 transition " + (centerTab === "schema" ? "bg-accent/20 text-white" : "text-slate-400 hover:text-white")}
+                    >
+                      Schema
+                    </button>
+                    <button
+                      onClick={() => setCenterTab("query")}
+                      className={"rounded-md px-3 py-1 transition " + (centerTab === "query" ? "bg-accent/20 text-white" : "text-slate-400 hover:text-white")}
+                    >
+                      Query
+                    </button>
+                  </div>
                 </div>
               </div>
-              <div className="h-[calc(100%-4rem)] w-full">
-                <SchemaGraph scaffold={scaffold} />
+              <div className="min-h-0 flex-1">
+                {centerTab === "schema" ? <SchemaGraph scaffold={scaffold} /> : <QueryConsole scaffold={scaffold} />}
               </div>
             </div>
           ) : (

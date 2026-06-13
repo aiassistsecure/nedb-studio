@@ -2,10 +2,14 @@ import { Router } from "express";
 
 import { finalizeScaffold } from "../lib/scaffold";
 import { matchTemplate, MOCK_PROVIDERS } from "../lib/mock";
+import { heuristicNlToNql } from "../lib/nql";
 import { validateScaffold } from "../lib/types";
 import { chat, defaults, hasCredentials, listProviders } from "./aiassist";
 import {
   extractJson,
+  extractNql,
+  nqlMessages,
+  nqlSystem,
   runnerMessages,
   runnerSystem,
   sentinelMessages,
@@ -106,5 +110,31 @@ api.post("/generate", async (req, res) => {
       mode: "mock",
       notes: ["Live generation error; served a mock template.", String(err)],
     });
+  }
+});
+
+// Natural language → NQL (the query console). Compilation is server-side via
+// AiAssist; execution happens in the browser against the scaffold's seed data.
+api.post("/nql", async (req, res) => {
+  const prompt = String(req.body?.prompt ?? "").trim();
+  const schema = req.body?.schema;
+  if (!prompt || !schema?.collections?.length) {
+    res.status(400).json({ error: "prompt and schema are required" });
+    return;
+  }
+  if (!hasCredentials()) {
+    res.json({ nql: heuristicNlToNql(prompt, schema), mode: "mock" });
+    return;
+  }
+  try {
+    const raw = await chat({
+      messages: [{ role: "system", content: nqlSystem(schema) }, ...nqlMessages(prompt)],
+      temperature: 0,
+      maxTokens: 160,
+    });
+    const nql = extractNql(raw) || heuristicNlToNql(prompt, schema);
+    res.json({ nql, mode: "live" });
+  } catch (err) {
+    res.json({ nql: heuristicNlToNql(prompt, schema), mode: "mock", error: String(err) });
   }
 });

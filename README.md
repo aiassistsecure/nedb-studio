@@ -2,9 +2,11 @@
 
 **Prompt-to-database scaffolding for agent-native applications.**
 
-A [Portal](https://github.com/interchained/Portal)-powered workspace over the [NEDB engine](https://github.com/Eth-Interchained/nedb). Describe an app in plain language and get a validated schema — collections, fields, types, relations, indexes, search fields, seed data, NQL, plus Python and Node snippets and a README — rendered as a live schema graph and exportable in one click.
+A [Portal](https://github.com/interchained/Portal)-powered workspace over the [NEDB engine](https://github.com/Eth-Interchained/nedb) — the **phpMyAdmin for NEDB**. Describe an app in plain language and get a validated schema — collections, fields, types, relations, indexes, search fields, seed data, NQL, plus Python and Node snippets and a README — rendered as a live schema graph and exportable in one click.
 
-Generation runs through **AiAssist** (`api.aiassist.net`) as the AI gateway. With no credentials, the studio runs fully in **mock mode** on deterministic templates.
+Then **query your data in plain English**: the query console compiles natural language → **NQL** (the verifiable, editable intermediate) and runs it live against the seed data, in-browser — results in a table.
+
+Generation runs through **AiAssist** (`api.aiassist.net`) as the AI gateway. With no credentials, the studio runs fully in **mock mode** on deterministic templates (and a heuristic NL→NQL compiler).
 
 ---
 
@@ -63,7 +65,7 @@ No credentials? Everything still works. The studio serves deterministic template
 | Route | Purpose |
 | --- | --- |
 | `/` | Landing — hero, example prompts, feature grid |
-| `/studio` | Three-panel workspace: prompt + provider/model controls · schema graph · artifact tabs |
+| `/studio` | Three-panel workspace: prompt + provider/model controls · schema graph **+ NL→NQL query console** · artifact tabs |
 | `/about` | The NEDB engine: replay-protected log, MVCC time-travel, relations, Cascade compression, Merkle roots |
 | `/docs` | Install (npm/PyPI), Python/Node usage, AiAssist setup, mock mode, export |
 
