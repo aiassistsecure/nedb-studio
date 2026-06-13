@@ -33,15 +33,19 @@ function portalRouteResolver(): Plugin {
 }
 
 export default defineConfig(({ mode }) => {
-  // Load .env so the dev proxy targets the SAME port the API server uses (PORT),
-  // keeping web (:3000) and API in sync even when PORT is overridden.
   const env = loadEnv(mode, process.cwd(), "");
-  const apiTarget = env.STUDIO_API_URL || `http://localhost:${env.PORT || "3001"}`;
+
+  // PORT      = Express API server (used by `npm run start` and `npm run dev:api`)
+  // VITE_PORT = Vite dev client (what the browser connects to in dev, default 3000)
+  // STUDIO_API_URL = full override for the API proxy target (optional)
+  const apiPort   = env.PORT      || "3001";
+  const clientPort = Number(env.VITE_PORT || 3000);
+  const apiTarget = env.STUDIO_API_URL || `http://localhost:${apiPort}`;
 
   return {
     plugins: [react(), portalPlugin(), portalRouteResolver()],
     server: {
-      port: 3000,
+      port: clientPort,
       allowedHosts: true,
       proxy: {
         "/api": { target: apiTarget, changeOrigin: true },
