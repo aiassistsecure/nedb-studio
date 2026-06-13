@@ -310,6 +310,25 @@ export const EXAMPLE_PROMPTS: string[] = [
   "Marketplace backend",
 ];
 
+export interface SampleDatabase {
+  key: string;
+  label: string;
+  scaffold: NEDBScaffold;
+}
+
+/**
+ * Curated, fully-valid sample databases — real schema + seed data you can query
+ * immediately. These are NOT mocks: they are finished NEDB databases the Query
+ * console runs NQL against. (The forbidden "mock" was the silent no-credentials
+ * fallback that masqueraded as live AI; these one-click templates are first-class
+ * sample data.)
+ */
+export const SAMPLE_DATABASES: SampleDatabase[] = TEMPLATES.map((t) => ({
+  key: t.key,
+  label: t.label,
+  scaffold: finalizeScaffold(t.core),
+}));
+
 /** Pick the best template for a prompt and return a complete, valid scaffold. */
 export function matchTemplate(prompt: string): NEDBScaffold {
   const p = (prompt || "").toLowerCase();

@@ -4,6 +4,7 @@ import { Link, useIsActive } from "@interchained/portal-react";
 const LINKS = [
   { href: "/", label: "Home" },
   { href: "/studio", label: "Studio" },
+  { href: "/query", label: "Query" },
   { href: "/about", label: "About" },
   { href: "/docs", label: "Docs" },
 ];

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Head, useSearchParams } from "@interchained/portal-react";
+import { Head, Link, useSearchParams } from "@interchained/portal-react";
 
 import { Nav } from "../src/components/Nav";
 import { Marquee } from "../src/components/Marquee";
@@ -8,6 +8,7 @@ import { SchemaGraph } from "../src/components/SchemaGraph";
 import { QueryConsole } from "../src/components/QueryConsole";
 import { ArtifactTabs } from "../src/components/ArtifactTabs";
 import { generate, getProviders, getStatus } from "../src/lib/api";
+import { saveActiveDatabase } from "../src/lib/database";
 import type { NEDBScaffold, ProviderInfo } from "../src/lib/types";
 
 export const intent = {
@@ -152,6 +153,14 @@ export default function StudioPage(): React.ReactElement {
                       Query
                     </button>
                   </div>
+                  <Link
+                    href="/query"
+                    onClick={() => saveActiveDatabase(scaffold)}
+                    className="btn-ghost px-3 py-1 text-xs"
+                    title="Open this database in the full query console"
+                  >
+                    Open in Query Console →
+                  </Link>
                 </div>
               </div>
               <div className="min-h-0 flex-1">

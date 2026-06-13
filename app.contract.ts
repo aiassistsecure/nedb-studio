@@ -129,6 +129,14 @@ export default defineApp({
       seoKeyword: "NEDB schema generator",
     },
     {
+      route: "/query",
+      purpose:
+        "The phpMyAdmin of NEDB: pick a generated or sample database, browse collections and seed data, inspect structure/indexes/relations, and query in plain English — natural language compiles to NQL via AiAssist and runs against the data",
+      audience: "Developers exploring, validating, or querying a NEDB database",
+      primaryAction: "Run Query",
+      seoKeyword: "natural language database query NQL",
+    },
+    {
       route: "/about",
       purpose:
         "Explain the NEDB engine — replay-protected log, MVCC time-travel, relations, Cascade compression, Merkle roots — and why it matters for AI agents",

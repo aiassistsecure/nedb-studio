@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import type { NEDBScaffold } from "../lib/types";
 import { executeNql, type QueryResult } from "../lib/nql";
 import { compileNql } from "../lib/api";
@@ -6,15 +6,32 @@ import { compileNql } from "../lib/api";
 /**
  * The "phpMyAdmin moment": ask in plain English → AiAssist compiles to NQL (shown
  * as the verifiable, editable intermediate) → the browser runs it against the
- * scaffold's seed data and renders a results table. Works in mock mode too.
+ * database's seed data and renders a results table. NL→NQL needs the AiAssist API;
+ * writing and running NQL by hand works with no key (real in-browser execution).
  */
-export function QueryConsole({ scaffold }: { scaffold: NEDBScaffold }): React.ReactElement {
+export function QueryConsole({
+  scaffold,
+  initialNql = "",
+}: {
+  scaffold: NEDBScaffold;
+  initialNql?: string;
+}): React.ReactElement {
   const first = scaffold.collections[0]?.name ?? "rows";
   const [nl, setNl] = useState("");
-  const [nql, setNql] = useState("");
+  const [nql, setNql] = useState(initialNql);
   const [result, setResult] = useState<QueryResult | null>(null);
   const [compiling, setCompiling] = useState(false);
-  const [mode, setMode] = useState<"mock" | "live" | null>(null);
+  const [live, setLive] = useState(false);
+  const didInit = useRef(false);
+
+  // A seeded query (collection click / example chip) runs locally on mount —
+  // no API needed: executeNql is the real in-browser NQL engine over seed data.
+  useEffect(() => {
+    if (!didInit.current && initialNql.trim()) {
+      didInit.current = true;
+      setResult(executeNql(initialNql, scaffold));
+    }
+  }, [initialNql, scaffold]);
 
   const examples = [
     `Show active ${first}, newest first`,
@@ -35,7 +52,7 @@ export function QueryConsole({ scaffold }: { scaffold: NEDBScaffold }): React.Re
       };
       const res = await compileNql(q, schema);
       setNql(res.nql);
-      setMode(res.mode);
+      setLive(res.mode === "live");
       setResult(executeNql(res.nql, scaffold));
     } catch (e) {
       setResult({ rows: [], columns: [], count: 0, error: String(e) });
@@ -54,14 +71,9 @@ export function QueryConsole({ scaffold }: { scaffold: NEDBScaffold }): React.Re
         <h2 className="text-sm font-semibold tracking-wide text-slate-300">
           QUERY CONSOLE <span className="text-slate-600">— natural language → NQL</span>
         </h2>
-        {mode ? (
-          <span
-            className={
-              "rounded-full px-2.5 py-0.5 text-[11px] font-semibold " +
-              (mode === "live" ? "bg-signal-green/15 text-signal-green" : "bg-signal-amber/15 text-signal-amber")
-            }
-          >
-            {mode === "live" ? "● AiAssist" : "● heuristic"}
+        {live ? (
+          <span className="rounded-full bg-signal-green/15 px-2.5 py-0.5 text-[11px] font-semibold text-signal-green">
+            ● AiAssist
           </span>
         ) : null}
       </div>

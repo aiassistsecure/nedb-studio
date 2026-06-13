@@ -2,7 +2,6 @@ import { Router } from "express";
 
 import { finalizeScaffold } from "../lib/scaffold";
 import { matchTemplate, MOCK_PROVIDERS } from "../lib/mock";
-import { heuristicNlToNql } from "../lib/nql";
 import { validateScaffold } from "../lib/types";
 import { extractBlock } from "./blocks";
 import { chat, defaults, hasCredentials, listProviders } from "./aiassist";
@@ -142,9 +141,13 @@ api.post("/nql", async (req, res) => {
     res.status(400).json({ error: "prompt and schema are required" });
     return;
   }
-  // Demo mode only when no credentials: heuristic NL→NQL compiler.
+  // No mocks: natural-language → NQL is an API capability. Without credentials we
+  // say so plainly (the client still lets you write and run NQL by hand).
   if (!hasCredentials()) {
-    res.json({ nql: heuristicNlToNql(prompt, schema), mode: "mock" });
+    res.status(503).json({
+      error: "AiAssist API not configured",
+      details: ["Set AIASSIST_API_KEY to compile natural language to NQL. You can still write and run NQL manually."],
+    });
     return;
   }
   try {
