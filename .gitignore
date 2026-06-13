@@ -1,0 +1,16 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+*.tsbuildinfo
+
+# env / secrets — never commit the real key
+.env
+.env.local
+.env.*.local
+
+# logs / os
+npm-debug.log*
+yarn-error.log*
+.DS_Store
