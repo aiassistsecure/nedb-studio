@@ -77,12 +77,12 @@ apps/nedb-studio/
   app.contract.ts          Portal contract (v1.1)
   vite.config.ts           portalPlugin + /api dev proxy
   server.ts                Express: /api routes + serves dist in prod
-  routes/                  index | studio | about | docs  (*.page.tsx)
+  routes/                  index | studio | databases | query | settings | about | docs  (*.page.tsx)
   src/
     main.tsx               PortalProvider entry
-    lib/                   types (Zod), scaffold builders, mock templates, api client
-    server/                aiassist client, prompts, generate router
-    components/            Nav, Marquee, PromptPanel, SchemaGraph, ArtifactTabs
+    lib/                   types (Zod), scaffold builders, sample databases, nql, api client
+    server/                aiassist client, prompts, generate router, nedbd client + config, databases/settings routers
+    components/            Nav, GatewayBar, PromptPanel, SchemaGraph, QueryConsole, ArtifactTabs
 ```
 
 ## Artifacts produced

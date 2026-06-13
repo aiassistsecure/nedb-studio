@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Head, Link, useSearchParams } from "@interchained/portal-react";
 
 import { Nav } from "../src/components/Nav";
-import { Marquee } from "../src/components/Marquee";
+import { GatewayBar } from "../src/components/GatewayBar";
 import { PromptPanel } from "../src/components/PromptPanel";
 import { SchemaGraph } from "../src/components/SchemaGraph";
 import { QueryConsole } from "../src/components/QueryConsole";
@@ -92,7 +92,12 @@ export default function StudioPage(): React.ReactElement {
       <Nav />
 
       <div className="glass border-b border-white/10 px-4 py-2">
-        <Marquee providers={providers} />
+        <GatewayBar
+          providers={providers}
+          provider={provider}
+          model={model}
+          onSelect={(p, m) => { setProvider(p); setModel(m); }}
+        />
       </div>
 
       <main className="grid flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[21rem_1fr_25rem]">
