@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>NEDB Studio — prompt-to-database for agent-native apps</title>
+<meta name="description" content="NEDB Studio: describe a data model in plain language, generate a validated NEDB schema, deploy it to a live NEDB server, and query and edit it in natural language. A Portal-powered workspace over the NEDB engine. GPLv3." />
+<meta property="og:title" content="NEDB Studio" />
+<meta property="og:description" content="Describe it, deploy it, query and edit it in plain English — a workspace over the NEDB engine." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #06080f; --bg2: #0a0e18; --panel: #0e1320; --line: #1d2433;
+    --ink: #f8fafc; --muted: #9aa6ba; --faint: #5e6b7e;
+    --indigo: #6366f1; --violet: #a78bfa; --green: #34d399;
+    --red: #f87171; --amber: #fbbf24;
+    --radius: 14px; --maxw: 1060px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: radial-gradient(1100px 560px at 50% -12%, #141436 0%, var(--bg) 56%);
+    color: var(--ink); font-family: "Inter", system-ui, -apple-system, sans-serif; line-height: 1.6; -webkit-font-smoothing: antialiased;
+  }
+  a { color: inherit; text-decoration: none; }
+  .mono { font-family: "JetBrains Mono", ui-monospace, monospace; }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+  .ind { color: var(--indigo); } .vio { color: var(--violet); } .grn { color: var(--green); }
+
+  header.nav { position: sticky; top: 0; z-index: 50; backdrop-filter: blur(10px); background: #06080fcc; border-bottom: 1px solid var(--line); }
+  .nav-in { display: flex; align-items: center; justify-content: space-between; height: 60px; }
+  .brand { display: flex; align-items: center; gap: 9px; font-weight: 800; letter-spacing: -0.3px; }
+  .brand .gem { color: var(--indigo); }
+  .nav-links { display: flex; gap: 20px; align-items: center; font-size: 14px; color: var(--muted); font-weight: 500; }
+  .nav-links a:hover { color: var(--ink); }
+  .nav-cta { border: 1px solid var(--line); padding: 7px 13px; border-radius: 9px; color: var(--ink) !important; }
+  .nav-cta:hover { border-color: var(--indigo); }
+  @media (max-width: 680px) { .nav-links a.hide { display: none; } }
+
+  .hero { padding: 78px 0 36px; text-align: center; }
+  .relpill { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; color: var(--violet); background: #a78bfa14; border: 1px solid #a78bfa33; padding: 5px 12px; border-radius: 999px; margin-bottom: 24px; }
+  .relpill .v { color: var(--ink); }
+  h1 { font-size: clamp(38px, 6.4vw, 70px); line-height: 1.0; letter-spacing: -1.8px; margin: 0 auto 16px; font-weight: 800; max-width: 14ch; background: linear-gradient(180deg, #fff, #b9c0d4); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .tag { font-size: clamp(17px, 2.2vw, 21px); color: var(--muted); max-width: 660px; margin: 0 auto 28px; }
+  .tag b { color: var(--ink); font-weight: 600; }
+  .cta { display: flex; flex-wrap: wrap; gap: 11px; align-items: center; justify-content: center; }
+  .btn { padding: 12px 22px; border-radius: 11px; font-weight: 600; font-size: 15px; border: 1px solid transparent; }
+  .btn-primary { background: var(--indigo); color: #fff; }
+  .btn-primary:hover { background: #7c7ff4; }
+  .btn-ghost { border-color: var(--line); color: var(--ink); }
+  .btn-ghost:hover { border-color: var(--indigo); }
+  .badges { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 24px; justify-content: center; }
+  .badges img { height: 20px; }
+
+  /* flow */
+  .flow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 30px; }
+  @media (max-width: 820px){ .flow{ grid-template-columns: repeat(2,1fr); } }
+  .step { border: 1px solid var(--line); background: var(--panel); border-radius: var(--radius); padding: 18px; position: relative; }
+  .step .num { font-family: "JetBrains Mono", monospace; font-size: 12px; color: var(--indigo); font-weight: 700; }
+  .step h3 { margin: 6px 0 5px; font-size: 15.5px; }
+  .step p { margin: 0; color: var(--muted); font-size: 13.5px; }
+
+  section { padding: 52px 0; border-top: 1px solid var(--line); }
+  .kick { font-size: 12.5px; letter-spacing: 1.6px; text-transform: uppercase; color: var(--indigo); font-weight: 600; margin-bottom: 10px; }
+  h2 { font-size: clamp(24px, 3.3vw, 34px); letter-spacing: -0.8px; margin: 0 0 14px; font-weight: 700; }
+  p.lede { color: var(--muted); max-width: 720px; font-size: 16.5px; }
+
+  .code { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; box-shadow: 0 26px 60px -34px #000; }
+  .code .bar { display: flex; gap: 7px; align-items: center; padding: 12px 15px; border-bottom: 1px solid var(--line); background: #0a0e18; }
+  .d { width: 11px; height: 11px; border-radius: 50%; } .d.r{background:#ff5f57}.d.y{background:#febc2e}.d.g{background:#28c840}
+  .code .fn { margin-left: 8px; font-size: 12px; color: var(--faint); }
+  pre { margin: 0; padding: 18px; overflow-x: auto; font-family: "JetBrains Mono", monospace; font-size: 13px; line-height: 1.75; }
+  .k{color:#8ab4ff}.s{color:var(--green)}.c{color:var(--faint);font-style:italic}.p{color:var(--violet)}
+
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 24px; }
+  @media (max-width: 820px){ .cards{ grid-template-columns: 1fr; } }
+  .card { border: 1px solid var(--line); background: linear-gradient(180deg, var(--panel), #0b0f19); border-radius: var(--radius); padding: 20px; }
+  .card h3 { margin: 0 0 7px; font-size: 16px; }
+  .card p { margin: 0; color: var(--muted); font-size: 14px; }
+  .card .ic { font-size: 18px; margin-bottom: 8px; }
+
+  .rel { display: grid; gap: 12px; margin-top: 22px; }
+  .relrow { display: grid; grid-template-columns: 96px 1fr; gap: 16px; border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; background: var(--bg2); }
+  @media (max-width: 640px){ .relrow{ grid-template-columns: 1fr; gap: 6px; } }
+  .relrow .ver { font-family: "JetBrains Mono", monospace; font-weight: 700; color: var(--violet); }
+  .relrow h3 { margin: 0 0 4px; font-size: 15.5px; }
+  .relrow p { margin: 0; color: var(--muted); font-size: 14.5px; }
+
+  ol.steps { counter-reset: s; list-style: none; padding: 0; margin: 22px 0 0; display: grid; gap: 10px; }
+  ol.steps li { counter-increment: s; display: grid; grid-template-columns: 30px 1fr; gap: 14px; align-items: start; border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; background: var(--bg2); }
+  ol.steps li::before { content: counter(s); font-family: "JetBrains Mono", monospace; font-weight: 700; color: var(--indigo); background: #6366f120; border: 1px solid #6366f140; width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; }
+  ol.steps code { background: #0a0e18; border: 1px solid var(--line); border-radius: 7px; padding: 2px 7px; font-size: 13px; }
+  ol.steps .t { color: var(--muted); font-size: 14.5px; }
+
+  footer { border-top: 1px solid var(--line); padding: 38px 0 60px; color: var(--faint); font-size: 14px; }
+  footer .row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 14px; align-items: center; }
+  footer a { color: var(--muted); } footer a:hover { color: var(--ink); }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap nav-in">
+    <div class="brand"><span class="gem">◆</span> NEDB Studio</div>
+    <nav class="nav-links">
+      <a class="hide" href="#flow">How it works</a>
+      <a class="hide" href="#start">Get started</a>
+      <a href="https://github.com/Eth-Interchained/nedb">Engine</a>
+      <a class="nav-cta" href="https://github.com/Eth-Interchained/nedb-studio">GitHub →</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap">
+    <span class="relpill">● <span class="v mono">v0.3.0</span> · GPLv3 · Portal-powered</span>
+    <h1>Prompt-to-database, end to end.</h1>
+    <p class="tag">Describe a data model in plain language. NEDB Studio generates a validated schema, <b>deploys it to a live NEDB server</b>, and lets you <b>query and edit it in natural language</b>.</p>
+    <div class="cta">
+      <a class="btn btn-primary" href="https://github.com/Eth-Interchained/nedb-studio">View on GitHub</a>
+      <a class="btn btn-ghost" href="#start">Get started</a>
+    </div>
+    <div class="badges">
+      <img alt="version" src="https://img.shields.io/badge/version-0.3.0-a78bfa" />
+      <img alt="license" src="https://img.shields.io/badge/license-GPLv3-6366f1" />
+      <img alt="engine" src="https://img.shields.io/badge/runs%20on-NEDB-34d399" />
+    </div>
+
+    <div class="flow" id="flow">
+      <div class="step"><div class="num">01</div><h3>Describe</h3><p>Write an app idea in a sentence. Pick your provider and model.</p></div>
+      <div class="step"><div class="num">02</div><h3>Generate</h3><p>A validated schema: collections, relations, indexes, seed data, NQL, snippets.</p></div>
+      <div class="step"><div class="num">03</div><h3>Deploy</h3><p>One click ships it to a running NEDB server as a durable database.</p></div>
+      <div class="step"><div class="num">04</div><h3>Query &amp; edit</h3><p>Ask, add, and change records in plain English — the model writes the NQL or the row.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="two-way">
+  <div class="wrap grid2" style="display:grid;grid-template-columns:1.02fr 0.98fr;gap:38px;align-items:center">
+    <div>
+      <div class="kick">The two-way console</div>
+      <h2>Read and write, in plain English</h2>
+      <p class="lede">Ask a question and the model compiles it to NQL and runs it on the live engine. Ask to <b>add or change a record</b> and it shows you the exact row it would write — editable, with regenerate and an explicit commit. Reads and writes, one console, nothing hidden.</p>
+    </div>
+    <div class="code">
+      <div class="bar"><span class="d r"></span><span class="d y"></span><span class="d g"></span><span class="fn mono">query console</span></div>
+<pre class="mono"><span class="c"># you type:</span>
+<span class="p">"add a client Mark Evans, phone 555-0199, email mark@acme.co"</span>
+
+<span class="c"># the console proposes — editable before you commit:</span>
+write → <span class="s">clients</span>
+  _id    mark-evans
+  name   Mark Evans
+  phone  555-0199
+  email  mark@acme.co
+<span class="c">          [ Commit write ]  [ Regenerate ]  [ Cancel ]</span></pre>
+    </div>
+  </div>
+</section>
+
+<section id="features">
+  <div class="wrap">
+    <div class="kick">What's inside</div>
+    <h2>A workspace over the NEDB engine</h2>
+    <div class="cards">
+      <div class="card"><div class="ic">🧩</div><h3>Schema, not boilerplate</h3><p>Collections, fields, relations, indexes, search fields, and seed data — generated and validated against a strict schema.</p></div>
+      <div class="card"><div class="ic">💬</div><h3>Natural language → NQL</h3><p>Plain-English questions compile to NQL and run on the real engine. The query is shown and editable.</p></div>
+      <div class="card"><div class="ic">✍️</div><h3>Natural-language writes</h3><p>Add and update records by describing them. The proposed row is previewed and editable; updates merge onto the existing record.</p></div>
+      <div class="card"><div class="ic">🚀</div><h3>Live deployment</h3><p>Deploy a generated schema to a running NEDB server (nedbd). The studio is a client — it holds no database state of its own.</p></div>
+      <div class="card"><div class="ic">🔒</div><h3>Integrity surfaced</h3><p>Per-database verify, the append-only log, sequence and head — the engine's guarantees, visible in the UI.</p></div>
+      <div class="card"><div class="ic">📤</div><h3>Export</h3><p>Schema JSON, relations, indexes, seed, NQL, and ready-to-run Python and Node snippets — copy or download.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="arch">
+  <div class="wrap">
+    <div class="kick">Architecture</div>
+    <h2>A thin client, by design</h2>
+    <p class="lede">The studio talks to a running <span class="mono ind">nedbd</span> over a URL (<span class="mono">NEDB_URL</span>, env-first with a Settings override). The engine owns storage, the log, MVCC, time-travel, integrity, and durability. The studio renders, plans actions with the AiAssist gateway, and forwards reads and writes — no database logic lives in the studio.</p>
+  </div>
+</section>
+
+<section id="start">
+  <div class="wrap">
+    <div class="kick">Get started</div>
+    <h2>Run it locally</h2>
+    <ol class="steps">
+      <li><span class="t">Start a NEDB server &nbsp; <code>pip install nedb-engine &amp;&amp; nedbd</code></span></li>
+      <li><span class="t">Point the studio at it &nbsp; <code>NEDB_URL=http://127.0.0.1:7070</code> (in <code>.env</code>)</span></li>
+      <li><span class="t">Run the studio &nbsp; <code>npm install &amp;&amp; npm run dev</code></span></li>
+      <li><span class="t">Describe an app → Generate → <b>Deploy →</b> ask &amp; add in plain English.</span></li>
+    </ol>
+    <p class="lede" style="margin-top:16px">Generation and natural-language actions run through the AiAssist gateway (your provider, your key, server-side only). Clone from <a class="ind" href="https://github.com/Eth-Interchained/nedb-studio">GitHub</a>.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap row">
+    <div>
+      <div class="brand" style="margin-bottom:7px"><span class="gem">◆</span> NEDB Studio</div>
+      <div>GPLv3 · © <a href="https://interchained.org">INTERCHAINED, LLC</a> · built on the <a href="https://github.com/Eth-Interchained/nedb">NEDB engine</a>, powered by <a href="https://aiassist.net">AiAssist</a></div>
+    </div>
+    <nav class="nav-links">
+      <a href="https://github.com/Eth-Interchained/nedb-studio">GitHub</a>
+      <a href="https://github.com/Eth-Interchained/nedb">Engine</a>
+      <a href="https://interchained.org">interchained.org</a>
+      <a href="https://aiassist.net">AiAssist.net</a>
+    </nav>
+  </div>
+</footer>
+
+</body>
+</html>

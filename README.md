@@ -4,9 +4,11 @@
 
 A [Portal](https://github.com/interchained/Portal)-powered workspace over the [NEDB engine](https://github.com/Eth-Interchained/nedb) — the **phpMyAdmin for NEDB**. Describe an app in plain language and get a validated schema — collections, fields, types, relations, indexes, search fields, seed data, NQL, plus Python and Node snippets and a README — rendered as a live schema graph and exportable in one click.
 
-Then **query your data in plain English**: the query console compiles natural language → **NQL** (the verifiable, editable intermediate) and runs it live against the seed data, in-browser — results in a table.
+Then **deploy it to a live NEDB server** (`nedbd`) and **query and edit it in plain English**: the two-way console compiles natural language → **NQL** for reads, and for writes shows the exact row it would insert/update (editable, with regenerate and an explicit commit) before writing to the real engine.
 
-Generation runs through **AiAssist** (`api.aiassist.net`) as the AI gateway. With no credentials, the studio runs fully in **mock mode** on deterministic templates (and a heuristic NL→NQL compiler).
+Generation and natural-language actions run through **AiAssist** (`api.aiassist.net`) as the AI gateway — your provider, your key, read server-side only. The studio is a thin **client** of a running NEDB server (`NEDB_URL`, env-first with a Settings override); the engine owns storage, the log, time-travel, integrity, and durability.
+
+**[Website → eth-interchained.github.io/nedb-studio](https://eth-interchained.github.io/nedb-studio/)**
 
 ---
 
@@ -95,4 +97,4 @@ Schema JSON · Relations · Indexes · Seed Data · NQL Queries · Python · Nod
 
 ## License
 
-Apache-2.0 · part of the NEDB / Interchained ecosystem.
+GPLv3 · © INTERCHAINED, LLC — [interchained.org](https://interchained.org). Built on the [NEDB engine](https://github.com/Eth-Interchained/nedb), powered by [AiAssist](https://aiassist.net).
