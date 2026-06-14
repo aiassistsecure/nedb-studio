@@ -45,7 +45,53 @@ function logError(label: string, err: unknown): void {
 }
 
 app.use(cors());
-app.use(express.json({ limit: "1mb" }));
+
+// ── Health check ─────────────────────────────────────────────────────────────
+// GET /api/health — reports every dependency so you can diagnose wiring issues
+// without digging through logs.
+app.get("/api/health", async (_req, res) => {
+  const nedbUrl = process.env.NEDB_URL || "http://127.0.0.1:7070";
+  const aiassistBase = process.env.AIASSIST_BASE_URL || "https://api.aiassist.net";
+  const hasKey = Boolean(process.env.AIASSIST_API_KEY);
+
+  let nedbOk = false;
+  let nedbErr = "";
+  try {
+    const r = await fetch(`${nedbUrl}/health`, { signal: AbortSignal.timeout(3000) });
+    nedbOk = r.ok;
+    if (!r.ok) nedbErr = `HTTP ${r.status}`;
+  } catch (e) {
+    nedbErr = (e as Error).message;
+  }
+
+  let aiassistOk = false;
+  let aiassistErr = "";
+  if (hasKey) {
+    try {
+      const r = await fetch(`${aiassistBase}/health`, {
+        headers: { Authorization: `Bearer ${process.env.AIASSIST_API_KEY}` },
+        signal: AbortSignal.timeout(5000),
+      });
+      aiassistOk = r.ok;
+      if (!r.ok) aiassistErr = `HTTP ${r.status}`;
+    } catch (e) {
+      aiassistErr = (e as Error).message;
+    }
+  } else {
+    aiassistErr = "AIASSIST_API_KEY not set — running in mock mode";
+  }
+
+  const status = nedbOk && (aiassistOk || !hasKey) ? 200 : 207;
+  res.status(status).json({
+    studio: "ok",
+    nedb:     { url: nedbUrl,      ok: nedbOk,     error: nedbErr || undefined },
+    aiassist: { url: aiassistBase, ok: aiassistOk, hasKey, error: aiassistErr || undefined },
+    bodyLimit: "32mb",
+    version:  process.env.npm_package_version ?? "?",
+  });
+});
+app.use(express.json({ limit: "32mb" }));  // scaffolds + seed data can be several MB
+app.use(express.urlencoded({ extended: true, limit: "32mb" }));
 app.use("/api/databases", databases);
 app.use("/api/settings", settings);
 app.use("/api", api);
