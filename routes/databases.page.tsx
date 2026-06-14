@@ -84,8 +84,29 @@ export default function DatabasesPage(): React.ReactElement {
     setPersistedScaffold(null);
     try {
       const d = await getDatabase(name);
-      // Load the persisted schema (stored in _studio/schema at deploy time) for the graph
-      getDeployedSchema(name).then(setPersistedScaffold).catch(() => {});
+      // Load the persisted schema — if absent, auto-backfill from the best available
+      // source: localStorage studioDb (full original scaffold) → sampled live scaffold.
+      // Silent, no button — just magic.
+      getDeployedSchema(name).then(async (schema) => {
+        if (schema) { setPersistedScaffold(schema); return; }
+        // No schema stored yet — backfill from localStorage if we have the right scaffold
+        const studioDb = loadActiveDatabase();
+        const source = studioDb ?? null;
+        if (!source) return; // nothing to backfill from yet; will set after live is built
+        // Write _studio/schema so the full graph shows from now on
+        try {
+          await putLiveRow(name, "_studio", "schema", {
+            _id: "schema",
+            appName: source.appName,
+            description: source.description,
+            collections: source.collections,
+            relations: source.relations,
+            indexes: source.indexes,
+            nqlExamples: source.nqlExamples,
+          });
+          setPersistedScaffold(source);
+        } catch { /* non-fatal */ }
+      }).catch(() => {});
       setDetail(d);
       // Synthesize a schema from the live DB (collection names + sampled fields)
       // so NL→NQL has something to work with; queries run on the real engine.
@@ -99,7 +120,7 @@ export default function DatabasesPage(): React.ReactElement {
         } catch { /* ignore */ }
         collections.push({ name: cname, fields });
       }
-      setLive({
+      const liveScaffold: NEDBScaffold = {
         appName: d.name,
         description: `Live database · ${d.rows} rows · seq ${d.seq}`,
         collections,
@@ -110,6 +131,23 @@ export default function DatabasesPage(): React.ReactElement {
         pythonSnippet: "",
         nodeSnippet: "",
         readmeExport: "",
+      };
+      setLive(liveScaffold);
+      // If no persistedScaffold yet (nothing in localStorage), backfill from the
+      // sampled live scaffold so the graph shows something real right now.
+      setPersistedScaffold((prev) => {
+        if (prev) return prev; // already set from localStorage path above
+        // Quietly save the sampled schema so next open is instant
+        void putLiveRow(name, "_studio", "schema", {
+          _id: "schema",
+          appName: liveScaffold.appName,
+          description: liveScaffold.description,
+          collections: liveScaffold.collections,
+          relations: liveScaffold.relations,
+          indexes: liveScaffold.indexes,
+          nqlExamples: liveScaffold.nqlExamples,
+        }).catch(() => {});
+        return liveScaffold;
       });
     } catch (e) {
       setError(String(e));
