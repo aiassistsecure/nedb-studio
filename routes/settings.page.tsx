@@ -76,7 +76,19 @@ export default function SettingsPage(): React.ReactElement {
         <section className="glass mt-6 rounded-2xl p-5">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold tracking-wide text-slate-200">NEDB CONNECTION</h2>
-            <ConnPill conn={conn} />
+            <div className="flex items-center gap-2">
+              {conn?.connected && (conn as Record<string, unknown>).encrypted !== undefined ? (
+                <span className={
+                  "rounded-full px-2.5 py-0.5 text-[11px] font-semibold " +
+                  ((conn as Record<string, unknown>).encrypted
+                    ? "bg-signal-green/15 text-signal-green"
+                    : "bg-signal-amber/15 text-signal-amber")
+                }>
+                  {(conn as Record<string, unknown>).encrypted ? "● AES-256-GCM" : "● plaintext"}
+                </span>
+              ) : null}
+              <ConnPill conn={conn} />
+            </div>
           </div>
 
           <label className="mt-4 block text-xs uppercase tracking-widest text-slate-500">NEDB server URL</label>
