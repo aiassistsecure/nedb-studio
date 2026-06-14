@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import type { NEDBScaffold } from "../lib/types";
 import { executeNql, type QueryResult } from "../lib/nql";
-import { planAction, translateQuery, type ActionPlan } from "../lib/api";
+import { planAction, putBatch, translateQuery, type ActionPlan, type BatchRow } from "../lib/api";
 
 type Lang = "nql" | "sql" | "redis";
 
@@ -48,6 +48,7 @@ export function QueryConsole({
   const [plan, setPlan] = useState<ActionPlan | null>(null);
   const [draftId, setDraftId] = useState("");
   const [draft, setDraft] = useState<Array<[string, string]>>([]);
+  const [batchDraft, setBatchDraft] = useState<Array<{ id: string; fields: Array<[string, string]> }>>([]);
   const [committing, setCommitting] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const didInit = useRef(false);
@@ -95,6 +96,11 @@ export function QueryConsole({
     if (p.kind === "write") {
       setDraftId(p.id);
       setDraft(Object.entries(p.doc).map(([k, v]) => [k, v == null ? "" : String(v)]));
+    } else if (p.kind === "batch") {
+      setBatchDraft(p.rows.map((r) => ({
+        id: r.id,
+        fields: Object.entries(r.doc).map(([k, v]) => [k, v == null ? "" : String(v)] as [string, string]),
+      })));
     }
   }
 
@@ -133,7 +139,16 @@ export function QueryConsole({
     setCommitting(true);
     setNotice(null);
     try {
-      if (plan.kind === "delete") {
+      if (plan.kind === "batch" && writeExec) {
+        const ops = batchDraft.map((row) => {
+          const doc: Record<string, unknown> = {};
+          for (const [k, v] of row.fields) if (k.trim()) doc[k.trim()] = coerce(v);
+          return { op: "put" as const, coll: plan.collection, id: row.id.trim(), doc };
+        }).filter((o) => o.id);
+        // putBatch needs db name — use the context from writeExec by putting each row
+        for (const op of ops) await writeExec.put(op.coll, op.id, op.doc);
+        setNotice(`✓ Batch saved — ${ops.length} row${ops.length === 1 ? "" : "s"} written to ${plan.collection}.`);
+      } else if (plan.kind === "delete") {
         await writeExec.del(plan.collection, plan.id);
         setNotice(`✓ Deleted ${plan.collection}/${plan.id}.`);
       } else if (plan.kind === "write") {
@@ -204,6 +219,56 @@ export function QueryConsole({
       ) : null}
 
       {/* write/delete preview — "what would be written", editable */}
+      {/* Batch write preview — multiple rows, each editable */}
+      {plan && plan.kind === "batch" ? (
+        <div className="glass-soft rounded-xl border border-accent/30 p-3">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-xs font-semibold text-accent-soft">
+              Will write <span className="font-mono text-white">{batchDraft.length}</span> rows to <span className="font-mono">{plan.collection}</span>
+            </span>
+            {plan.summary ? <span className="text-[11px] text-slate-500">{plan.summary}</span> : null}
+          </div>
+          <div className="max-h-[280px] overflow-y-auto space-y-2 pr-1">
+            {batchDraft.map((row, ri) => (
+              <div key={ri} className="rounded-lg border border-white/10 bg-black/20 p-2">
+                <div className="mb-1.5 flex items-center gap-2">
+                  <span className="w-5 text-center font-mono text-[10px] text-accent-soft font-bold">{ri + 1}</span>
+                  <span className="text-[10px] text-slate-600 font-mono">_id</span>
+                  <input
+                    value={row.id}
+                    onChange={(e) => setBatchDraft((d) => d.map((r, i) => i === ri ? { ...r, id: e.target.value } : r))}
+                    className="glass-soft flex-1 rounded px-2 py-0.5 font-mono text-[11px] text-slate-100 outline-none focus:border-accent/50"
+                  />
+                  <button
+                    onClick={() => setBatchDraft((d) => d.filter((_, i) => i !== ri))}
+                    className="px-1 text-slate-600 hover:text-signal-red" title="remove row"
+                  >✕</button>
+                </div>
+                {row.fields.map(([k, v], fi) => (
+                  <div key={fi} className="mb-1 flex items-center gap-2 pl-7">
+                    <input value={k} onChange={(e) => setBatchDraft((d) => d.map((r, i) => i === ri ? { ...r, fields: r.fields.map((f, j) => j === fi ? [e.target.value, f[1]] : f) } : r))}
+                      className="glass-soft w-20 shrink-0 rounded px-2 py-0.5 font-mono text-[10px] text-slate-400 outline-none" />
+                    <input value={v} onChange={(e) => setBatchDraft((d) => d.map((r, i) => i === ri ? { ...r, fields: r.fields.map((f, j) => j === fi ? [f[0], e.target.value] : f) } : r))}
+                      className="glass-soft flex-1 rounded px-2 py-0.5 font-mono text-[11px] text-slate-100 outline-none focus:border-accent/50" />
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+          <div className="mt-2 flex items-center gap-2">
+            <button onClick={() => setBatchDraft((d) => [...d, { id: "", fields: [["", ""]] }])} className="text-[11px] text-accent-soft hover:text-white">+ row</button>
+          </div>
+          <div className="mt-3 flex items-center gap-2">
+            <button onClick={() => void commit()} disabled={committing || !writeExec || batchDraft.every((r) => !r.id.trim())} className="btn-primary text-xs disabled:opacity-50">
+              {committing ? "Writing…" : `Commit ${batchDraft.length} rows`}
+            </button>
+            <button onClick={() => void ask(nl)} disabled={busy} className="btn-ghost text-xs disabled:opacity-50">Regenerate</button>
+            <button onClick={() => setPlan(null)} className="btn-ghost text-xs">Cancel</button>
+            {!writeExec ? <span className="text-[11px] text-signal-amber">Deploy on Databases page to write.</span> : null}
+          </div>
+        </div>
+      ) : null}
+
       {plan && plan.kind === "write" ? (
         <div className="glass-soft rounded-xl border border-accent/30 p-3">
           <div className="mb-2 flex items-center justify-between">

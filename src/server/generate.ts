@@ -194,12 +194,12 @@ api.post("/plan", async (req, res) => {
     });
     const plan = extractPlan(raw) as Record<string, unknown> | null;
     const kind = plan && typeof plan === "object" ? plan.kind : undefined;
-    if (!plan || !["query", "write", "delete", "unsupported"].includes(String(kind))) {
+    if (!plan || !["query", "write", "batch", "delete", "unsupported"].includes(String(kind))) {
       res.status(422).json({ error: "Model did not return a valid action", details: [JSON.stringify(plan).slice(0, 200)] });
       return;
     }
     const names = new Set((schema.collections as Array<{ name: string }>).map((c) => c.name));
-    if ((kind === "write" || kind === "delete") && !names.has(String(plan.collection))) {
+    if ((kind === "write" || kind === "batch" || kind === "delete") && !names.has(String(plan.collection))) {
       res.status(422).json({ error: `Unknown collection "${plan.collection}"` });
       return;
     }

@@ -119,6 +119,29 @@ databases.delete("/:name/rows/:coll/:id", async (req, res) => {
   }
 });
 
+databases.post("/:name/batch", async (req, res) => {
+  try {
+    const ops = req.body?.ops;
+    if (!Array.isArray(ops) || !ops.length) {
+      res.status(400).json({ error: "ops array is required" }); return;
+    }
+    // Forward each op through nedbd
+    const results = [];
+    for (const op of ops) {
+      if (op.op === "put") {
+        const r = await nedb.putRow(req.params.name, { coll: op.coll, id: op.id, doc: op.doc });
+        results.push({ op: "put", id: op.id, ...r });
+      } else if (op.op === "del") {
+        const r = await nedb.deleteRow(req.params.name, op.coll, op.id);
+        results.push({ op: "del", id: op.id, ...r });
+      }
+    }
+    res.json({ results, count: results.length });
+  } catch (e) {
+    fail(res, e);
+  }
+});
+
 databases.get("/:name/schema", async (req, res) => {
   try {
     const schema = await nedb.loadDeployedSchema(req.params.name);

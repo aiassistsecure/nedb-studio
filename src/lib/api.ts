@@ -165,6 +165,19 @@ export async function putLiveRow(
   return (await res.json()) as { ok: boolean; seq: number; head: string };
 }
 
+export async function putBatch(
+  name: string,
+  ops: Array<{ op: "put" | "del" | "link"; coll?: string; id?: string; doc?: Record<string, unknown>; frm?: string; rel?: string; to?: string }>,
+): Promise<{ results: Array<{ op: string; id?: string; seq: number }>; seq: number; head: string }> {
+  const res = await fetch(`/api/databases/${encodeURIComponent(name)}/batch`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ops }),
+  });
+  if (!res.ok) throw new Error(await errorMessage(res, "Batch write failed"));
+  return (await res.json()) as { results: Array<{ op: string; id?: string; seq: number }>; seq: number; head: string };
+}
+
 export async function deleteLiveRow(name: string, coll: string, id: string): Promise<{ ok: boolean; seq: number; head: string }> {
   const res = await fetch(`/api/databases/${encodeURIComponent(name)}/rows/${encodeURIComponent(coll)}/${encodeURIComponent(id)}`, {
     method: "DELETE",
@@ -174,9 +187,12 @@ export async function deleteLiveRow(name: string, coll: string, id: string): Pro
 }
 
 // Natural-language action plan: a read (query) OR a write/delete to preview, edit, confirm.
+export type BatchRow = { id: string; doc: Record<string, unknown> };
+
 export type ActionPlan =
   | { kind: "query"; nql: string }
   | { kind: "write"; collection: string; id: string; doc: Record<string, unknown>; summary?: string }
+  | { kind: "batch"; collection: string; rows: BatchRow[]; summary?: string }
   | { kind: "delete"; collection: string; id: string; summary?: string }
   | { kind: "unsupported"; reason: string };
 
