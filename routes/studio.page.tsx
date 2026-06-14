@@ -143,35 +143,43 @@ export default function StudioPage(): React.ReactElement {
           ) : null}
           {scaffold ? (
             <div className="flex h-full flex-col">
-              <div className="flex items-center justify-between gap-3 px-5 py-3">
+              <div
+                className="flex items-center justify-between gap-3 border-b px-5 py-4"
+                style={{ borderColor: "var(--border-2)" }}
+              >
                 <div className="min-w-0">
-                  <h1 className="truncate text-lg font-bold">{scaffold.appName}</h1>
-                  <p className="truncate text-xs text-slate-400">{scaffold.description}</p>
+                  <h1
+                    className="truncate font-bold text-white"
+                    style={{ fontSize: "1.1rem", fontFamily: "var(--font-display)", letterSpacing: "-0.02em" }}
+                  >
+                    {scaffold.appName}
+                  </h1>
+                  <p className="mt-0.5 truncate text-[11px] text-slate-600">{scaffold.description}</p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="hidden gap-3 font-mono text-[11px] text-slate-500 sm:flex">
-                    <span>{scaffold.collections.length} coll</span>
-                    <span>{scaffold.relations.length} rel</span>
-                    <span>{scaffold.indexes.length} idx</span>
+                  <div className="hidden gap-3 font-mono text-[11px] text-slate-600 sm:flex">
+                    <span><span className="text-slate-400">{scaffold.collections.length}</span> coll</span>
+                    <span><span className="text-slate-400">{scaffold.relations.length}</span> rel</span>
+                    <span><span className="text-slate-400">{scaffold.indexes.length}</span> idx</span>
                   </div>
-                  <div className="flex rounded-lg border border-white/10 p-0.5 text-xs">
-                    <button
-                      onClick={() => setCenterTab("schema")}
-                      className={"rounded-md px-3 py-1 transition " + (centerTab === "schema" ? "bg-accent/20 text-white" : "text-slate-400 hover:text-white")}
-                    >
-                      Schema
-                    </button>
-                    <button
-                      onClick={() => setCenterTab("query")}
-                      className={"rounded-md px-3 py-1 transition " + (centerTab === "query" ? "bg-accent/20 text-white" : "text-slate-400 hover:text-white")}
-                    >
-                      Query
-                    </button>
+                  <div className="flex text-xs">
+                    {(["schema", "query"] as const).map((t) => (
+                      <button
+                        key={t}
+                        onClick={() => setCenterTab(t)}
+                        className={"relative rounded-md px-3 py-1.5 capitalize transition " + (centerTab === t ? "text-white" : "text-slate-500 hover:text-white")}
+                      >
+                        {centerTab === t && (
+                          <span className="absolute inset-0 rounded-md bg-accent/10 ring-1 ring-accent/20" aria-hidden />
+                        )}
+                        <span className="relative">{t}</span>
+                      </button>
+                    ))}
                   </div>
                   <Link
                     href="/databases"
                     onClick={() => saveActiveDatabase(scaffold)}
-                    className="btn-primary px-3 py-1 text-xs"
+                    className="btn-primary px-4 py-1.5 text-xs"
                     title="Deploy this schema as a durable database, then query it live"
                   >
                     Deploy →
@@ -216,20 +224,42 @@ function EmptyState({
   canGenerate: boolean;
 }): React.ReactElement {
   return (
-    <div className="flex h-full min-h-[420px] flex-col items-center justify-center gap-4 p-10 text-center">
-      <div className="text-5xl text-accent-glow opacity-60">◆</div>
-      <h1 className="text-xl font-bold">{loading ? "Generating your schema…" : "Your schema graph appears here"}</h1>
-      <p className="max-w-md text-sm text-slate-400">
-        Describe an application on the left and generate a validated NEDB scaffold — entities, relations,
-        indexes, and seed data, rendered as a live graph.
-      </p>
-      <button
-        onClick={onGenerate}
-        disabled={!canGenerate || loading}
-        className="btn-primary disabled:cursor-not-allowed disabled:opacity-50"
+    <div className="flex h-full min-h-[420px] flex-col items-center justify-center gap-5 p-10 text-center">
+      {/* Animated glyph */}
+      <div
+        className="flex h-16 w-16 items-center justify-center rounded-2xl text-3xl"
+        style={{
+          background: "rgba(var(--accent)/0.08)",
+          border: "1px solid rgba(var(--accent)/0.16)",
+          color: "rgb(var(--accent-glow))",
+          boxShadow: loading ? "0 0 32px -8px rgba(var(--accent)/0.3)" : "none",
+          animation: loading ? "pulse-glow 2s ease-in-out infinite" : "none",
+        }}
       >
-        {loading ? "Generating…" : "Generate Schema"}
-      </button>
+        {loading ? "⧖" : "◆"}
+      </div>
+      <div>
+        <h1
+          className="font-bold text-white"
+          style={{ fontSize: "1.2rem", fontFamily: "var(--font-display)" }}
+        >
+          {loading ? "Generating your schema…" : "Schema graph appears here"}
+        </h1>
+        <p className="mx-auto mt-2 max-w-sm text-sm text-slate-600">
+          {loading
+            ? "Building collections, relations, indexes, and seed data."
+            : "Describe an application on the left — entities, relations, indexes, and seed data will be rendered as a live graph."}
+        </p>
+      </div>
+      {!loading && (
+        <button
+          onClick={onGenerate}
+          disabled={!canGenerate}
+          className="btn-primary disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Generate Schema
+        </button>
+      )}
     </div>
   );
 }

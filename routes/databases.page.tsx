@@ -252,54 +252,64 @@ export default function DatabasesPage(): React.ReactElement {
 
       <div className="flex min-h-0 flex-1">
         {/* Left rail: deploy + database list */}
-        <aside className="flex w-72 flex-col overflow-y-auto border-r border-white/10 bg-black/20">
-          <div className="border-b border-white/10 p-3">
-            <p className="mb-2 text-[10px] uppercase tracking-widest text-slate-500">Deploy</p>
+        <aside
+          className=”flex w-72 flex-col overflow-y-auto border-r”
+          style={{ background: “var(--surface-1)”, borderColor: “var(--border-2)” }}
+        >
+          <div className=”border-b p-3.5” style={{ borderColor: “var(--border-2)” }}>
+            <p className=”mb-2.5 font-mono text-[10px] uppercase tracking-[0.15em] text-slate-600”>Deploy</p>
             {studioDb ? (
               <button
                 onClick={() => void deploy(studioDb, studioDb.appName)}
                 disabled={busy != null}
-                className="btn-primary mb-2 w-full text-xs disabled:opacity-50"
+                className=”btn-primary mb-2 w-full text-xs disabled:opacity-50”
               >
-                {busy === studioDb.appName ? "Deploying…" : `Deploy “${studioDb.appName}” (from Studio)`}
+                {busy === studioDb.appName ? “Deploying…” : `Deploy “${studioDb.appName}”`}
               </button>
             ) : (
-              <Link href="/studio" className="mb-2 block text-center text-[11px] text-accent-soft hover:text-white">
+              <Link href=”/studio” className=”mb-2 flex items-center justify-center gap-1 text-[11px] text-accent-soft transition hover:text-white”>
                 Generate a schema in Studio →
               </Link>
             )}
-            <p className="mb-1 mt-2 text-[10px] uppercase tracking-widest text-slate-600">Sample databases</p>
+            <p className=”mb-1.5 mt-3 font-mono text-[10px] uppercase tracking-[0.15em] text-slate-700”>
+              Sample databases
+            </p>
             {SAMPLE_DATABASES.map((s) => (
               <button
                 key={s.key}
                 onClick={() => void deploy(s.scaffold, s.label)}
                 disabled={busy != null}
-                className="mb-1 w-full rounded-md px-2.5 py-1.5 text-left text-xs text-slate-300 transition hover:bg-white/5 hover:text-white disabled:opacity-50"
+                className=”mb-0.5 w-full rounded-md px-2.5 py-1.5 text-left text-xs text-slate-400 transition hover:bg-accent/[0.06] hover:text-white disabled:opacity-50”
               >
-                {busy === s.label ? "Deploying…" : `+ ${s.label}`}
+                {busy === s.label ? “Deploying…” : `+ ${s.label}`}
               </button>
             ))}
           </div>
 
-          <nav className="flex-1 overflow-y-auto p-2">
-            <p className="px-2.5 pb-1 pt-1 text-[10px] uppercase tracking-widest text-slate-600">
-              Databases {connected ? `(${dbs.length})` : ""}
+          <nav className=”flex-1 overflow-y-auto p-2”>
+            <p className=”px-2.5 pb-1.5 pt-2 font-mono text-[10px] uppercase tracking-[0.15em] text-slate-700”>
+              Databases {connected ? <span className=”text-slate-600”>({dbs.length})</span> : null}
             </p>
             {dbs.map((d) => (
               <button
                 key={d.name}
                 onClick={() => void select(d.name)}
                 className={
-                  "flex w-full items-center justify-between rounded-md px-2.5 py-1.5 text-left font-mono text-xs transition " +
-                  (selected === d.name ? "bg-accent/20 text-white" : "text-slate-400 hover:bg-white/5 hover:text-white")
+                  “relative flex w-full items-center justify-between rounded-md px-2.5 py-2 text-left font-mono text-xs transition-all “ +
+                  (selected === d.name
+                    ? “bg-accent/[0.12] text-white ring-1 ring-accent/20”
+                    : “text-slate-400 hover:bg-white/[0.04] hover:text-white”)
                 }
               >
-                <span className="truncate">◆ {d.name}</span>
-                <span className="ml-2 shrink-0 text-slate-600">{d.rows}</span>
+                {selected === d.name && (
+                  <span className=”absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-full bg-accent” />
+                )}
+                <span className=”truncate pl-1”>◆ {d.name}</span>
+                <span className=”ml-2 shrink-0 tabular-nums text-slate-600”>{d.rows}</span>
               </button>
             ))}
             {connected && dbs.length === 0 ? (
-              <p className="px-2.5 py-2 text-xs text-slate-600">No databases yet — deploy one above.</p>
+              <p className=”px-2.5 py-3 text-[11px] text-slate-700”>No databases yet.</p>
             ) : null}
           </nav>
         </aside>
@@ -311,19 +321,42 @@ export default function DatabasesPage(): React.ReactElement {
           ) : null}
 
           {!detail ? (
-            <div className="flex h-full items-center justify-center p-10 text-center text-sm text-slate-500">
-              {selected ? "Loading…" : "Select a database, or deploy one from the left."}
+            <div className="flex h-full flex-col items-center justify-center gap-4 p-10 text-center">
+              {selected ? (
+                <div className="text-sm text-slate-500">Loading…</div>
+              ) : (
+                <>
+                  <div className="text-3xl text-accent-glow opacity-40">◆</div>
+                  <div className="text-sm text-slate-500">Select a database from the left, or deploy a new one.</div>
+                  {!connected && (
+                    <div className="font-mono text-xs text-slate-700">
+                      No server — run: <span className="text-accent-soft">pip install nedb-engine &amp;&amp; nedbd</span>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           ) : (
             <>
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-5 py-3">
+              {/* DB detail header */}
+              <div
+                className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4"
+                style={{ borderColor: "var(--border-2)" }}
+              >
                 <div className="min-w-0">
-                  <h1 className="truncate text-lg font-bold">{detail.name}</h1>
-                  <div className="flex gap-3 font-mono text-[11px] text-slate-500">
-                    <span>{Object.keys(detail.collections).length} coll</span>
-                    <span>{detail.rows} rows</span>
-                    <span>seq {detail.seq}</span>
-                    <span title={detail.head}>head {detail.head.slice(0, 10)}…</span>
+                  <h1
+                    className="truncate font-bold text-white"
+                    style={{ fontSize: "1.2rem", fontFamily: "var(--font-display)", letterSpacing: "-0.02em" }}
+                  >
+                    {detail.name}
+                  </h1>
+                  <div className="mt-1 flex flex-wrap gap-3 font-mono text-[11px] text-slate-600">
+                    <span className="text-slate-500">{Object.keys(detail.collections).length}<span className="ml-0.5 text-slate-700"> coll</span></span>
+                    <span className="text-slate-500">{detail.rows}<span className="ml-0.5 text-slate-700"> rows</span></span>
+                    <span className="text-slate-500">seq <span className="text-slate-400">{detail.seq}</span></span>
+                    <span className="text-slate-700" title={detail.head}>
+                      head <span className="text-slate-600">{detail.head.slice(0, 10)}…</span>
+                    </span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -332,7 +365,7 @@ export default function DatabasesPage(): React.ReactElement {
                     className={detail.integrity.ok ? "pill-verified" : "pill-error"}
                     title="Re-verify the hash-chained log"
                   >
-                    <span>{detail.integrity.ok ? "●" : "●"}</span>
+                    <span className="opacity-80">●</span>
                     {detail.integrity.ok ? "verified" : "tampered"}
                   </button>
                   <div className="flex flex-wrap items-center gap-1 text-xs">
@@ -340,9 +373,17 @@ export default function DatabasesPage(): React.ReactElement {
                       <button
                         key={t}
                         onClick={() => setTab(t)}
-                        className={"rounded-md px-3 py-1 capitalize transition " + (tab === t ? "bg-accent/20 text-white" : "text-slate-400 hover:text-white")}
+                        className={
+                          "relative rounded-md px-3 py-1.5 capitalize transition-all " +
+                          (tab === t ? "text-white" : "text-slate-500 hover:text-white")
+                        }
                       >
-                        {t === "query" ? "Query (NL → NQL)" : t}
+                        {tab === t && (
+                          <span className="absolute inset-0 rounded-md bg-accent/10 ring-1 ring-accent/20" aria-hidden />
+                        )}
+                        <span className="relative">
+                          {t === "query" ? "Query" : t}
+                        </span>
                       </button>
                     ))}
                   </div>
@@ -350,10 +391,10 @@ export default function DatabasesPage(): React.ReactElement {
               </div>
 
               {/* collections strip (browse) */}
-              <div className="flex flex-wrap gap-1 border-b border-white/10 px-4 py-2">
+              <div className="flex flex-wrap gap-1.5 border-b px-4 py-2.5" style={{ borderColor: "var(--border-2)" }}>
                 {Object.entries(detail.collections).map(([c, n]) => (
                   <button key={c} onClick={() => browse(c)} className="chip" title={`Browse ${c}`}>
-                    {c} <span className="text-slate-600">{n}</span>
+                    {c} <span className="ml-0.5 font-mono text-[10px] tabular-nums text-slate-600">{n}</span>
                   </button>
                 ))}
               </div>
@@ -405,28 +446,51 @@ export default function DatabasesPage(): React.ReactElement {
   );
 }
 
+const OP_COLOR: Record<string, string> = {
+  put:        "text-signal-green",
+  delete:     "text-signal-red",
+  link:       "text-signal-cyan",
+  unlink:     "text-signal-amber",
+  checkpoint: "text-accent-soft",
+  index:      "text-accent-glow",
+};
+
 function LogView({ log }: { log: LogEntry[] }): React.ReactElement {
-  if (!log.length) return <div className="p-6 text-sm text-slate-500">No log entries.</div>;
+  if (!log.length) return (
+    <div className="flex flex-col items-center justify-center gap-3 p-12 text-center">
+      <div className="font-mono text-2xl opacity-20">▢</div>
+      <div className="text-sm text-slate-600">No log entries loaded.</div>
+    </div>
+  );
   const target = (e: LogEntry): string => {
     const p = e.payload || {};
     return [p.coll, p.id].filter(Boolean).join(":") || [p.frm, p.rel, p.to].filter(Boolean).join(" ") || "";
   };
   return (
-    <div className="p-4">
+    <div className="overflow-auto p-4">
+      <div className="mb-2 font-mono text-[11px] text-slate-700">
+        {log.length} entries · most recent first
+      </div>
       <table className="w-full border-collapse text-left font-mono text-[12px]">
         <thead>
-          <tr className="border-b border-white/10 text-slate-400">
-            <th className="px-3 py-2">seq</th><th className="px-3 py-2">op</th>
-            <th className="px-3 py-2">target</th><th className="px-3 py-2">hash</th>
+          <tr className="border-b text-slate-600" style={{ borderColor: "var(--border-2)" }}>
+            <th className="px-3 py-2 font-medium">seq</th>
+            <th className="px-3 py-2 font-medium">op</th>
+            <th className="px-3 py-2 font-medium">target</th>
+            <th className="px-3 py-2 font-medium">hash</th>
           </tr>
         </thead>
         <tbody>
           {log.map((e) => (
-            <tr key={e.seq} className="border-b border-white/5 hover:bg-white/5">
-              <td className="px-3 py-1.5 text-slate-400">{e.seq}</td>
-              <td className="px-3 py-1.5 text-accent-soft">{e.op}</td>
-              <td className="px-3 py-1.5 text-slate-200">{target(e)}</td>
-              <td className="px-3 py-1.5 text-slate-600" title={e.hash}>{e.hash.slice(0, 12)}…</td>
+            <tr key={e.seq} className="group border-b transition-colors hover:bg-white/[0.03]"
+              style={{ borderColor: "var(--border-2)" }}>
+              <td className="px-3 py-1.5 tabular-nums text-slate-600">{e.seq}</td>
+              <td className={"px-3 py-1.5 font-semibold " + (OP_COLOR[e.op] ?? "text-accent-soft")}>
+                {e.op}
+              </td>
+              <td className="px-3 py-1.5 text-slate-300">{target(e)}</td>
+              <td className="px-3 py-1.5 text-slate-700 transition group-hover:text-slate-500"
+                title={e.hash}>{e.hash.slice(0, 12)}…</td>
             </tr>
           ))}
         </tbody>
