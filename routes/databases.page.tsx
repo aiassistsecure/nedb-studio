@@ -124,7 +124,8 @@ export default function DatabasesPage(): React.ReactElement {
         appName: d.name,
         description: `Live database · ${d.rows} rows · seq ${d.seq}`,
         collections,
-        relations: [],
+        // Use live relations from the engine — real graph edges, not sampled
+        relations: (d.relations ?? []) as import("../src/lib/types").Relation[],
         indexes: d.indexes.map(([collection, field, kind]) => ({ collection, field, kind: kind as "eq" | "ordered" | "search" })),
         seedData: {},
         nqlExamples: Object.keys(d.collections).slice(0, 3).map((c) => `FROM ${c} LIMIT ${pageSize()}`),

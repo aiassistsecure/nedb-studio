@@ -89,6 +89,7 @@ export interface DbSummary {
 
 export interface DbDetail extends DbSummary {
   indexes: Array<[string, string, string]>;
+  relations?: Array<{ from: string; relation: string; to: string; cardinality: string }>;
   integrity: { ok: boolean };
 }
 
