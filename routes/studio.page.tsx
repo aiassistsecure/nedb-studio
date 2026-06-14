@@ -31,7 +31,17 @@ export default function StudioPage(): React.ReactElement {
   const [error, setError] = useState<string | null>(null);
   const [notes, setNotes] = useState<string[]>([]);
   const [centerTab, setCenterTab] = useState<"schema" | "query">("schema");
+  const [querySeed, setQuerySeed] = useState("");
+  const [seedKey, setSeedKey] = useState(0);
   const autoRan = useRef(false);
+
+  // Drill-down from the schema graph: open a collection in the query console.
+  // (Studio is design-time — read-only. To edit live rows, Deploy → Databases.)
+  function openInConsole(coll: string): void {
+    setQuerySeed(`FROM ${coll} LIMIT 50`);
+    setSeedKey((k) => k + 1);
+    setCenterTab("query");
+  }
 
   // Load provider/model catalog + mode from the server (which holds the key).
   useEffect(() => {
@@ -169,7 +179,11 @@ export default function StudioPage(): React.ReactElement {
                 </div>
               </div>
               <div className="min-h-0 flex-1">
-                {centerTab === "schema" ? <SchemaGraph scaffold={scaffold} /> : <QueryConsole scaffold={scaffold} />}
+                {centerTab === "schema" ? (
+                  <SchemaGraph scaffold={scaffold} onOpenCollection={openInConsole} />
+                ) : (
+                  <QueryConsole key={seedKey} scaffold={scaffold} initialNql={querySeed} />
+                )}
               </div>
             </div>
           ) : (

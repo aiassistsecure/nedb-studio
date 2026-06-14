@@ -30,13 +30,24 @@ export type Cardinality = z.infer<typeof Cardinality>;
 export const IndexKind = z.enum(["eq", "ordered", "search"]);
 export type IndexKind = z.infer<typeof IndexKind>;
 
-export const FieldSchema = z.object({
-  name: z.string().min(1),
-  type: FieldType,
-  required: z.boolean().optional(),
-  description: z.string().optional(),
-});
-export type Field = z.infer<typeof FieldSchema>;
+// Field is recursive: a json/object field may carry nested `fields`, enabling
+// deep, inline drill-down in the schema graph (group → field → sub-field → …).
+export interface Field {
+  name: string;
+  type: FieldType;
+  required?: boolean;
+  description?: string;
+  fields?: Field[];
+}
+export const FieldSchema: z.ZodType<Field> = z.lazy(() =>
+  z.object({
+    name: z.string().min(1),
+    type: FieldType,
+    required: z.boolean().optional(),
+    description: z.string().optional(),
+    fields: z.array(FieldSchema).optional(),
+  }),
+);
 
 export const CollectionSchema = z.object({
   name: z.string().min(1),

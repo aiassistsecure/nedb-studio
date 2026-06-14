@@ -25,7 +25,7 @@ import {
   type LogEntry,
 } from "../src/lib/api";
 import { SAMPLE_DATABASES, loadActiveDatabase } from "../src/lib/database";
-import type { FieldType, NEDBScaffold } from "../src/lib/types";
+import type { Field, FieldType } from "../src/lib/types";
 
 export const intent = {
   purpose: "Deploy a generated scaffold into a running NEDB server and query/operate the live, durable database",
@@ -43,6 +43,28 @@ function fieldType(v: unknown): FieldType {
   if (typeof v === "boolean") return "boolean";
   if (v && typeof v === "object") return "json";
   return "string";
+}
+
+// Infer a (possibly nested) field tree from a sampled value, so the schema graph
+// can deep-drill into JSON objects. Plain objects recurse; arrays/scalars are leaves.
+function fieldsFromValue(v: unknown, depth = 0): Field[] | undefined {
+  if (depth > 4 || !v || typeof v !== "object" || Array.isArray(v)) return undefined;
+  return Object.keys(v as Record<string, unknown>).map((k) => {
+    const child = (v as Record<string, unknown>)[k];
+    const f: Field = { name: k, type: fieldType(child) };
+    const sub = fieldsFromValue(child, depth + 1);
+    if (sub && sub.length) f.fields = sub;
+    return f;
+  });
+}
+
+function fieldsFromSample(sample: Record<string, unknown>): Field[] {
+  return Object.keys(sample).map((k) => {
+    const f: Field = { name: k, type: fieldType(sample[k]) };
+    const sub = fieldsFromValue(sample[k], 1);
+    if (sub && sub.length) f.fields = sub;
+    return f;
+  });
 }
 
 export default function DatabasesPage(): React.ReactElement {
@@ -112,11 +134,11 @@ export default function DatabasesPage(): React.ReactElement {
       // so NL→NQL has something to work with; queries run on the real engine.
       const collections = [];
       for (const cname of Object.keys(d.collections)) {
-        let fields = [{ name: "_id", type: "string" as FieldType }];
+        let fields: Field[] = [{ name: "_id", type: "string" }];
         try {
           const r = await queryLiveDatabase(name, `FROM ${cname} LIMIT 1`);
           const sample = r.rows[0];
-          if (sample) fields = Object.keys(sample).map((k) => ({ name: k, type: fieldType(sample[k]) }));
+          if (sample) fields = fieldsFromSample(sample as Record<string, unknown>);
         } catch { /* ignore */ }
         collections.push({ name: cname, fields });
       }
@@ -335,14 +357,14 @@ export default function DatabasesPage(): React.ReactElement {
               <div className="min-h-0 flex-1 overflow-auto">
                 {tab === "schema" ? (
                   persistedScaffold ? (
-                    <SchemaGraph scaffold={persistedScaffold} />
+                    <SchemaGraph scaffold={persistedScaffold} onOpenCollection={browse} />
                   ) : live ? (
                     <div className="flex h-full flex-col">
                       <div className="px-4 pt-3 text-[11px] text-signal-amber">
                         Schema graph is based on sampled data — deploy this database from Studio to see the full structure.
                       </div>
                       <div className="min-h-0 flex-1">
-                        <SchemaGraph scaffold={live} />
+                        <SchemaGraph scaffold={live} onOpenCollection={browse} />
                       </div>
                     </div>
                   ) : (
