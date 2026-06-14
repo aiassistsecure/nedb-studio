@@ -253,25 +253,25 @@ export default function DatabasesPage(): React.ReactElement {
       <div className="flex min-h-0 flex-1">
         {/* Left rail: deploy + database list */}
         <aside
-          className=”flex w-72 flex-col overflow-y-auto border-r”
-          style={{ background: “var(--surface-1)”, borderColor: “var(--border-2)” }}
+          className="flex w-72 flex-col overflow-y-auto border-r"
+          style={{ background: "var(--surface-1)", borderColor: "var(--border-2)" }}
         >
-          <div className=”border-b p-3.5” style={{ borderColor: “var(--border-2)” }}>
-            <p className=”mb-2.5 font-mono text-[10px] uppercase tracking-[0.15em] text-slate-600”>Deploy</p>
+          <div className="border-b p-3.5" style={{ borderColor: "var(--border-2)" }}>
+            <p className="mb-2.5 font-mono text-[10px] uppercase tracking-[0.15em] text-slate-600">Deploy</p>
             {studioDb ? (
               <button
                 onClick={() => void deploy(studioDb, studioDb.appName)}
                 disabled={busy != null}
-                className=”btn-primary mb-2 w-full text-xs disabled:opacity-50”
+                className="btn-primary mb-2 w-full text-xs disabled:opacity-50"
               >
-                {busy === studioDb.appName ? “Deploying…” : `Deploy “${studioDb.appName}”`}
+                {busy === studioDb.appName ? "Deploying…" : `Deploy "${studioDb.appName}"`}
               </button>
             ) : (
-              <Link href=”/studio” className=”mb-2 flex items-center justify-center gap-1 text-[11px] text-accent-soft transition hover:text-white”>
+              <Link href="/studio" className="mb-2 flex items-center justify-center gap-1 text-[11px] text-accent-soft transition hover:text-white">
                 Generate a schema in Studio →
               </Link>
             )}
-            <p className=”mb-1.5 mt-3 font-mono text-[10px] uppercase tracking-[0.15em] text-slate-700”>
+            <p className="mb-1.5 mt-3 font-mono text-[10px] uppercase tracking-[0.15em] text-slate-700">
               Sample databases
             </p>
             {SAMPLE_DATABASES.map((s) => (
@@ -279,37 +279,37 @@ export default function DatabasesPage(): React.ReactElement {
                 key={s.key}
                 onClick={() => void deploy(s.scaffold, s.label)}
                 disabled={busy != null}
-                className=”mb-0.5 w-full rounded-md px-2.5 py-1.5 text-left text-xs text-slate-400 transition hover:bg-accent/[0.06] hover:text-white disabled:opacity-50”
+                className="mb-0.5 w-full rounded-md px-2.5 py-1.5 text-left text-xs text-slate-400 transition hover:bg-accent/[0.06] hover:text-white disabled:opacity-50"
               >
-                {busy === s.label ? “Deploying…” : `+ ${s.label}`}
+                {busy === s.label ? "Deploying…" : `+ ${s.label}`}
               </button>
             ))}
           </div>
 
-          <nav className=”flex-1 overflow-y-auto p-2”>
-            <p className=”px-2.5 pb-1.5 pt-2 font-mono text-[10px] uppercase tracking-[0.15em] text-slate-700”>
-              Databases {connected ? <span className=”text-slate-600”>({dbs.length})</span> : null}
+          <nav className="flex-1 overflow-y-auto p-2">
+            <p className="px-2.5 pb-1.5 pt-2 font-mono text-[10px] uppercase tracking-[0.15em] text-slate-700">
+              Databases {connected ? <span className="text-slate-600">({dbs.length})</span> : null}
             </p>
             {dbs.map((d) => (
               <button
                 key={d.name}
                 onClick={() => void select(d.name)}
                 className={
-                  “relative flex w-full items-center justify-between rounded-md px-2.5 py-2 text-left font-mono text-xs transition-all “ +
+                  "relative flex w-full items-center justify-between rounded-md px-2.5 py-2 text-left font-mono text-xs transition-all " +
                   (selected === d.name
-                    ? “bg-accent/[0.12] text-white ring-1 ring-accent/20”
-                    : “text-slate-400 hover:bg-white/[0.04] hover:text-white”)
+                    ? "bg-accent/[0.12] text-white ring-1 ring-accent/20"
+                    : "text-slate-400 hover:bg-white/[0.04] hover:text-white")
                 }
               >
                 {selected === d.name && (
-                  <span className=”absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-full bg-accent” />
+                  <span className="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-full bg-accent" />
                 )}
-                <span className=”truncate pl-1”>◆ {d.name}</span>
-                <span className=”ml-2 shrink-0 tabular-nums text-slate-600”>{d.rows}</span>
+                <span className="truncate pl-1">◆ {d.name}</span>
+                <span className="ml-2 shrink-0 tabular-nums text-slate-600">{d.rows}</span>
               </button>
             ))}
             {connected && dbs.length === 0 ? (
-              <p className=”px-2.5 py-3 text-[11px] text-slate-700”>No databases yet.</p>
+              <p className="px-2.5 py-3 text-[11px] text-slate-700">No databases yet.</p>
             ) : null}
           </nav>
         </aside>
