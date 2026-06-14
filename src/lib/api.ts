@@ -62,6 +62,21 @@ export async function compileNql(prompt: string, schema: unknown): Promise<Compi
   return (await res.json()) as CompileNqlResult;
 }
 
+/** Translate a SQL SELECT or Redis read command to NQL. */
+export async function translateQuery(
+  lang: "sql" | "redis",
+  input: string,
+  schema: unknown,
+): Promise<{ kind: string; nql?: string; sql?: string; op?: string }> {
+  const res = await fetch("/api/translate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ lang, input, schema }),
+  });
+  if (!res.ok) throw new Error(await errorMessage(res, "Translation failed"));
+  return (await res.json()) as { kind: string; nql?: string; sql?: string; op?: string };
+}
+
 // ── Deployment: the studio talks to a NEDB server (nedbd) via these routes ─────
 
 export interface DbSummary {

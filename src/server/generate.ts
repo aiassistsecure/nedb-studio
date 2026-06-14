@@ -208,3 +208,108 @@ api.post("/plan", async (req, res) => {
     res.status(502).json({ error: "AiAssist plan error", details: [String(err)] });
   }
 });
+
+// Translate SQL or a Redis command string to NQL.
+// lang = "sql" | "redis"
+// input = the SQL string or a Redis command line (e.g. "HGETALL user:1")
+// schema = {collections, relations, indexes} — used for SQL table/column validation
+api.post("/translate", (req, res) => {
+  const { lang, input, schema } = req.body ?? {};
+  if (!lang || !input) {
+    res.status(400).json({ error: "lang and input are required" });
+    return;
+  }
+
+  if (lang === "sql") {
+    try {
+      // Inline a tiny SQL→NQL translator (mirrors nedb.sql.sql_to_nql logic in TS)
+      // For SELECT statements we convert to NQL; other statements surface as writes.
+      const up = String(input).trim().toUpperCase();
+      if (up.startsWith("SELECT")) {
+        const nql = sqlToNql(String(input));
+        res.json({ kind: "query", nql });
+      } else if (up.startsWith("INSERT")) {
+        res.json({ kind: "sql_write", sql: String(input), op: "insert" });
+      } else if (up.startsWith("UPDATE")) {
+        res.json({ kind: "sql_write", sql: String(input), op: "update" });
+      } else if (up.startsWith("DELETE")) {
+        res.json({ kind: "sql_write", sql: String(input), op: "delete" });
+      } else {
+        res.status(400).json({ error: `Unsupported SQL statement type. Supported: SELECT, INSERT, UPDATE, DELETE.` });
+      }
+    } catch (e) {
+      res.status(400).json({ error: String(e) });
+    }
+    return;
+  }
+
+  if (lang === "redis") {
+    try {
+      const nql = redisToNql(String(input));
+      if (nql === null) {
+        res.status(400).json({ error: `Cannot translate Redis command to NQL. Use the NQL tab for unsupported commands.` });
+      } else {
+        res.json({ kind: "query", nql });
+      }
+    } catch (e) {
+      res.status(400).json({ error: String(e) });
+    }
+    return;
+  }
+
+  res.status(400).json({ error: `Unknown lang: ${String(lang)}. Use "sql" or "redis".` });
+});
+
+// ── Inline translators (mirrors the Python adapters without the full parser) ──
+
+function sqlToNql(sql: string): string {
+  const s = sql.trim().replace(/;+$/, "");
+  // FROM
+  const fromM = s.match(/\bFROM\s+(\w+)/i);
+  if (!fromM) throw new Error("No FROM clause found");
+  const table = fromM[1];
+  const parts: string[] = [`FROM ${table}`];
+  // AS OF
+  const asofM = s.match(/\bAS\s+OF\s+(\d+)/i);
+  if (asofM) parts.push(`AS OF ${asofM[1]}`);
+  // WHERE
+  const whereM = s.match(/\bWHERE\b([\s\S]*?)(?:\bORDER\b|\bLIMIT\b|\bSEARCH\b|$)/i);
+  if (whereM) {
+    let w = whereM[1].trim().replace(/'([^']*)'/g, '"$1"');
+    // LIKE → SEARCH (extract term, drop the condition from WHERE)
+    const likeM = w.match(/(\w+)\s+LIKE\s+"([^"]*)"/i);
+    if (likeM) {
+      w = w.replace(likeM[0], "").replace(/\bAND\b\s*$/i, "").trim();
+      const term = likeM[2].replace(/%/g, "").trim();
+      if (w) parts.push(`WHERE ${w}`);
+      if (term) parts.push(`SEARCH "${term}"`);
+    } else if (w) {
+      parts.push(`WHERE ${w}`);
+    }
+  }
+  // ORDER BY
+  const orderM = s.match(/\bORDER\s+BY\s+(\w+)(?:\s+(ASC|DESC))?/i);
+  if (orderM) parts.push(`ORDER BY ${orderM[1]} ${(orderM[2] || "ASC").toUpperCase()}`);
+  // LIMIT
+  const limitM = s.match(/\bLIMIT\s+(\d+)/i);
+  if (limitM) parts.push(`LIMIT ${limitM[1]}`);
+  return parts.join(" ");
+}
+
+function redisToNql(cmd: string): string | null {
+  const parts = cmd.trim().split(/\s+/);
+  const c = (parts[0] || "").toUpperCase();
+  const key = parts[1] || "";
+  // Map read-only Redis commands that have a NQL equivalent
+  if (c === "KEYS") return `FROM _kv`;
+  if (c === "HGETALL" && key) return `FROM ${safeNqlName(key)}`;
+  if (c === "SMEMBERS" && key) {
+    return `FROM _kv WHERE _id = "_set_${safeNqlName(key)}"`;
+  }
+  // Commands that require a full database call — surface as unsupported in translator
+  return null;
+}
+
+function safeNqlName(s: string): string {
+  return s.replace(/[^A-Za-z0-9_]/g, (c) => `__${c.charCodeAt(0).toString(16).padStart(2, "0")}__`);
+}

@@ -1,7 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
 import type { NEDBScaffold } from "../lib/types";
 import { executeNql, type QueryResult } from "../lib/nql";
-import { planAction, type ActionPlan } from "../lib/api";
+import { planAction, translateQuery, type ActionPlan } from "../lib/api";
+
+type Lang = "nql" | "sql" | "redis";
 
 /**
  * The two-way console: ask in plain English and the model plans an ACTION — a
@@ -36,8 +38,10 @@ export function QueryConsole({
   onWritten?: () => void;
 }): React.ReactElement {
   const first = scaffold.collections[0]?.name ?? "rows";
+  const [lang, setLang] = useState<Lang>("nql");
   const [nl, setNl] = useState("");
   const [nql, setNql] = useState(initialNql);
+  const [rawInput, setRawInput] = useState(""); // SQL or Redis raw input
   const [result, setResult] = useState<QueryResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [live, setLive] = useState(false);
@@ -49,6 +53,28 @@ export function QueryConsole({
   const didInit = useRef(false);
 
   const exec = async (q: string): Promise<QueryResult> => (runNql ? runNql(q) : executeNql(q, scaffold));
+
+  async function runTranslated(): Promise<void> {
+    if (!rawInput.trim() || !["sql", "redis"].includes(lang)) return;
+    setBusy(true);
+    setNotice(null);
+    try {
+      const schema = { collections: scaffold.collections, relations: scaffold.relations, indexes: scaffold.indexes };
+      const out = await translateQuery(lang as "sql" | "redis", rawInput, schema);
+      if (out.kind === "query" && out.nql) {
+        setNql(out.nql);
+        setResult(await exec(out.nql));
+      } else if (out.kind === "sql_write") {
+        setNotice(`Write detected (${out.op}). Deploy a live database in Databases to execute writes.`);
+      } else {
+        setNotice(`Could not translate to NQL — ${JSON.stringify(out)}`);
+      }
+    } catch (e) {
+      setResult({ rows: [], columns: [], count: 0, error: String(e instanceof Error ? e.message : e) });
+    } finally {
+      setBusy(false);
+    }
+  }
 
   useEffect(() => {
     if (!didInit.current && initialNql.trim()) {
@@ -119,12 +145,27 @@ export function QueryConsole({
     }
   }
 
+  const LANGS: Array<{ id: Lang; label: string; hint: string }> = [
+    { id: "nql", label: "NQL", hint: "NEDB Query Language" },
+    { id: "sql", label: "SQL", hint: "SELECT / INSERT / UPDATE / DELETE" },
+    { id: "redis", label: "Redis", hint: "GET / HGETALL / SMEMBERS / …" },
+  ];
+
   return (
     <div className="flex h-full flex-col gap-3 p-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold tracking-wide text-slate-300">
-          QUERY CONSOLE <span className="text-slate-600">— ask, add, or change in plain English</span>
-        </h2>
+        <div className="flex items-center gap-1 rounded-lg border border-white/10 p-0.5 text-xs">
+          {LANGS.map((l) => (
+            <button
+              key={l.id}
+              onClick={() => setLang(l.id)}
+              title={l.hint}
+              className={"rounded-md px-3 py-1 font-semibold transition " + (lang === l.id ? "bg-accent/20 text-white" : "text-slate-400 hover:text-white")}
+            >
+              {l.label}
+            </button>
+          ))}
+        </div>
         {live ? (
           <span className="rounded-full bg-signal-green/15 px-2.5 py-0.5 text-[11px] font-semibold text-signal-green">● AiAssist</span>
         ) : null}
@@ -211,6 +252,25 @@ export function QueryConsole({
         <div className="rounded-lg bg-signal-amber/10 px-3 py-2 text-xs text-signal-amber">{plan.reason}</div>
       ) : null}
 
+      {/* SQL / Redis input (shown only in those modes) */}
+      {lang !== "nql" ? (
+        <div className="flex gap-2">
+          <input
+            value={rawInput}
+            onChange={(e) => setRawInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") void runTranslated(); }}
+            placeholder={lang === "sql"
+              ? `SELECT * FROM ${first} WHERE … ORDER BY … LIMIT …`
+              : `HGETALL ${first}:id  ·  SMEMBERS tags  ·  KEYS *`}
+            spellCheck={false}
+            className="glass-soft code flex-1 rounded-lg px-3 py-2 text-sm text-slate-100 outline-none focus:border-accent/50"
+          />
+          <button onClick={() => void runTranslated()} disabled={busy || !rawInput.trim()} className="btn-primary disabled:opacity-50">
+            {busy ? "…" : "Run"}
+          </button>
+        </div>
+      ) : null}
+
       {/* compiled NQL — the verifiable, editable intermediate (for reads) */}
       <div className="flex items-center gap-2">
         <span className="font-mono text-[11px] uppercase tracking-wide text-slate-500">NQL</span>
@@ -218,7 +278,7 @@ export function QueryConsole({
           value={nql}
           onChange={(e) => setNql(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") void run(); }}
-          placeholder="FROM … WHERE … ORDER BY … LIMIT …"
+          placeholder={lang === "sql" ? "Compiled NQL (from SQL above)" : lang === "redis" ? "Compiled NQL (from Redis above)" : "FROM … WHERE … ORDER BY … LIMIT …"}
           spellCheck={false}
           className="glass-soft code flex-1 rounded-lg px-3 py-2 text-accent-soft outline-none focus:border-accent/50"
         />
