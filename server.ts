@@ -26,13 +26,18 @@ const app = express();
 // ── Request logger ──────────────────────────────────────────────────────────
 app.use((req: Request, res: Response, next: NextFunction) => {
   const start = Date.now();
+  // Capture originalUrl NOW — Express mutates req.url as it routes through mounted
+  // sub-routers (stripping the prefix), so by the time "finish" fires, req.url is
+  // the router-relative path ("/") rather than the full path ("/api/databases").
+  // req.originalUrl is immutable and always shows what the client actually sent.
+  const originalUrl = req.originalUrl || req.url;
   res.on("finish", () => {
     const ms = Date.now() - start;
     const status = res.statusCode;
     const color = status >= 500 ? "\x1b[31m" : status >= 400 ? "\x1b[33m" : status >= 300 ? "\x1b[36m" : "\x1b[32m";
     const reset = "\x1b[0m";
     const ip = (req.headers["cf-connecting-ip"] || req.headers["x-real-ip"] || req.socket.remoteAddress || "-") as string;
-    console.log(`${color}${status}${reset} ${req.method} ${req.url} — ${ms}ms  [${ip}]`);
+    console.log(`${color}${status}${reset} ${req.method} ${originalUrl} — ${ms}ms  [${ip}]`);
   });
   next();
 });
