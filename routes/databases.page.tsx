@@ -501,14 +501,44 @@ function LogView({ log }: { log: LogEntry[] }): React.ReactElement {
 
 function Connect({ url, name, onDrop }: { url: string; name: string; onDrop: () => void }): React.ReactElement {
   const base = url || "http://127.0.0.1:7070";
-  const curl = `curl -X POST ${base}/v1/databases/${name}/query \\\n  -H 'Content-Type: application/json' \\\n  -d '{"nql":"FROM <collection> LIMIT 10"}'`;
-  const py = `import requests\nr = requests.post("${base}/v1/databases/${name}/query",\n                  json={"nql": "FROM <collection> LIMIT 10"})\nprint(r.json()["rows"])`;
+  const resp2Port = 6380; // nedbd default RESP2 port
+  const curl = `curl -X POST ${base}/v1/databases/${name}/query \\
+  -H 'Content-Type: application/json' \\
+  -d '{"nql":"FROM <collection> LIMIT 10"}'`;
+  const py = `import requests
+r = requests.post("${base}/v1/databases/${name}/query",
+                  json={"nql": "FROM <collection> LIMIT 10"})
+print(r.json()["rows"])`;
+  const resp2 = `# Start nedbd with RESP2 enabled:
+NEDBD_RESP2_PORT=${resp2Port} nedbd
+
+# Then use redis-cli — no Redis installation required:
+redis-cli -p ${resp2Port} SELECT ${name}
+redis-cli -p ${resp2Port} SELECT ${name} EVAL 'FROM <collection> LIMIT 10' 0
+redis-cli -p ${resp2Port} SELECT ${name} EVAL 'FROM <collection> SEARCH "keyword"' 0
+
+# Time-travel (read as it was at seq 100):
+redis-cli -p ${resp2Port} SELECT ${name} EVAL 'FROM <collection> AS OF 100 LIMIT 5' 0
+
+# Causal provenance — why does a belief exist?
+redis-cli -p ${resp2Port} SELECT ${name} EVAL 'FROM <collection> WHERE _id = "x" TRACE caused_by' 0
+
+# Bi-temporal — what was true on a specific date?
+redis-cli -p ${resp2Port} SELECT ${name} EVAL 'FROM <collection> VALID AS OF "2024-06-01"' 0
+
+# Standard Redis commands also work:
+redis-cli -p ${resp2Port} SELECT ${name} HSET mykey field value
+redis-cli -p ${resp2Port} SELECT ${name} HGETALL mykey`;
+
   return (
     <div className="space-y-5 p-5">
       <div>
         <h3 className="text-xs uppercase tracking-widest text-slate-500">NEDB server</h3>
         <code className="glass-soft code mt-1 block rounded-lg px-3 py-2 text-sm text-accent-soft">{base}</code>
-        <p className="mt-1 text-xs text-slate-500">Database <span className="font-mono">{name}</span> runs on the nedbd daemon. Configure the URL in <Link href="/settings" className="underline">Settings</Link>.</p>
+        <p className="mt-1 text-xs text-slate-500">
+          Database <span className="font-mono">{name}</span> runs on the nedbd daemon.
+          Configure the URL in <Link href="/settings" className="underline">Settings</Link>.
+        </p>
       </div>
       <div>
         <h3 className="text-xs uppercase tracking-widest text-slate-500">curl</h3>
@@ -517,6 +547,18 @@ function Connect({ url, name, onDrop }: { url: string; name: string; onDrop: () 
       <div>
         <h3 className="text-xs uppercase tracking-widest text-slate-500">Python</h3>
         <pre className="glass-soft code mt-1 overflow-auto rounded-lg p-3 text-xs text-slate-200">{py}</pre>
+      </div>
+      <div>
+        <div className="flex items-center gap-2">
+          <h3 className="text-xs uppercase tracking-widest text-slate-500">RESP2 — Redis wire protocol</h3>
+          <span className="rounded-full bg-accent/10 px-2 py-0.5 font-mono text-[10px] text-accent-soft">
+            Start nedbd with NEDBD_RESP2_PORT={resp2Port}
+          </span>
+        </div>
+        <p className="mt-1 text-xs text-slate-600">
+          Any Redis client in any language. Full NQL via EVAL including time-travel, causal provenance, and bi-temporal queries.
+        </p>
+        <pre className="glass-soft code mt-1 overflow-auto rounded-lg p-3 text-xs text-slate-200 leading-relaxed">{resp2}</pre>
       </div>
       <div>
         <h3 className="text-xs uppercase tracking-widest text-signal-red/80">Danger zone</h3>

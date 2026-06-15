@@ -26,7 +26,12 @@ export interface Plan {
 
 type Tok = { t: "kw" | "word" | "op" | "num" | "str"; v: string | number };
 
-const KEYWORDS = new Set(["from", "as", "of", "where", "and", "search", "order", "by", "asc", "desc", "traverse", "limit", "true", "false", "null"]);
+const KEYWORDS = new Set([
+  "from", "as", "of", "where", "and", "search", "order", "by",
+  "asc", "desc", "traverse", "trace", "reverse", "limit",
+  "valid", "group", "count", "sum", "avg", "min", "max",
+  "true", "false", "null",
+]);
 const TOKEN_RE = /\s+|"([^"]*)"|'([^']*)'|(-?\d+(?:\.\d+)?)|(<=|>=|!=|=|<|>)|([A-Za-z_][A-Za-z0-9_]*)/y;
 
 function lex(text: string): Tok[] {

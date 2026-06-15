@@ -57,6 +57,9 @@ export function QueryConsole({
   const [lang, setLang] = useState<Lang>("nql");
   const [nl, setNl] = useState("");
   const [nql, setNql] = useState(initialNql);
+  const [asOfSeq, setAsOfSeq] = useState("");          // AS OF seq (time-travel)
+  const [validAsOf, setValidAsOf] = useState("");       // VALID AS OF date (bi-temporal)
+  const [traceResult, setTraceResult] = useState<{ rows: Record<string, unknown>[]; id: string } | null>(null);
   const [rawInput, setRawInput] = useState(""); // SQL or Redis raw input
   const [mongoInput, setMongoInput] = useState(
     `{\n  "collection": "${scaffold.collections[0]?.name ?? "items"}",\n  "op": "find",\n  "filter": {},\n  "limit": 50\n}`,
@@ -150,8 +153,36 @@ export function QueryConsole({
     }
   }
 
+  /** Build the full NQL string, injecting AS OF and VALID AS OF modifiers. */
+  function buildNql(base: string): string {
+    let q = base.trim();
+    // Strip existing AS OF / VALID AS OF to avoid duplication
+    q = q.replace(/\s+AS\s+OF\s+\d+/gi, "").replace(/\s+VALID\s+AS\s+OF\s+"[^"]*"/gi, "").trim();
+    const fromMatch = q.match(/^(FROM\s+\S+)/i);
+    if (fromMatch && (asOfSeq.trim() || validAsOf.trim())) {
+      let insert = "";
+      if (asOfSeq.trim()) insert += ` AS OF ${parseInt(asOfSeq, 10)}`;
+      if (validAsOf.trim()) insert += ` VALID AS OF "${validAsOf.trim()}"`;
+      q = q.replace(/^(FROM\s+\S+)/i, `$1${insert}`);
+    }
+    return q;
+  }
+
   async function run(): Promise<void> {
-    if (nql.trim()) setResult(await exec(nql));
+    if (nql.trim()) setResult(await exec(buildNql(nql)));
+  }
+
+  async function traceRow(row: Record<string, unknown>): Promise<void> {
+    const id = String(row._id ?? row.id ?? "");
+    if (!id || !runNql) return;
+    const coll = nql.match(/FROM\s+([A-Za-z_]\w*)/i)?.[1] ?? "";
+    if (!coll) return;
+    setBusy(true);
+    try {
+      const r = await runNql(`FROM ${coll} WHERE _id = "${id}" TRACE caused_by`);
+      setTraceResult({ rows: r.rows, id });
+    } catch { /* ignore */ }
+    finally { setBusy(false); }
   }
 
   async function runMongo(): Promise<void> {
@@ -455,6 +486,86 @@ export function QueryConsole({
         </div>
       ) : null}
 
+      {/* Time modifiers — AS OF seq + VALID AS OF date */}
+      {lang === "nql" && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-mono text-[10px] uppercase tracking-wide text-slate-600">Time</span>
+          <div className="flex items-center gap-1">
+            <span className="font-mono text-[10px] text-slate-600">seq</span>
+            <input
+              value={asOfSeq}
+              onChange={(e) => setAsOfSeq(e.target.value.replace(/\D/g, ""))}
+              placeholder="AS OF seq"
+              title="Read this database as it was at a past sequence number"
+              className="glass-soft w-24 rounded px-2 py-1 font-mono text-[11px] text-slate-300 outline-none placeholder:text-slate-700"
+            />
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="font-mono text-[10px] text-slate-600">valid</span>
+            <input
+              type="date"
+              value={validAsOf}
+              onChange={(e) => setValidAsOf(e.target.value)}
+              title="Filter to facts that were true in the world on this date (bi-temporal)"
+              className="glass-soft rounded px-2 py-1 font-mono text-[11px] text-slate-300 outline-none"
+            />
+          </div>
+          {(asOfSeq || validAsOf) && (
+            <button
+              onClick={() => { setAsOfSeq(""); setValidAsOf(""); }}
+              className="font-mono text-[10px] text-slate-600 hover:text-signal-red"
+              title="Clear time modifiers"
+            >
+              ✕ clear
+            </button>
+          )}
+          {(asOfSeq || validAsOf) && (
+            <span className="font-mono text-[10px] text-accent-soft">
+              {asOfSeq ? `AS OF ${asOfSeq}` : ""}
+              {asOfSeq && validAsOf ? "  ·  " : ""}
+              {validAsOf ? `VALID AS OF "${validAsOf}"` : ""}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Provenance panel — TRACE caused_by result */}
+      {traceResult && (
+        <div className="glass-soft rounded-xl border border-accent/20 p-3">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-xs font-semibold text-accent-soft">
+              Why does <span className="font-mono text-white">{traceResult.id}</span> exist?
+              <span className="ml-2 text-slate-600">({traceResult.rows.length} causal root{traceResult.rows.length !== 1 ? "s" : ""})</span>
+            </span>
+            <button onClick={() => setTraceResult(null)} className="text-slate-600 hover:text-white">✕</button>
+          </div>
+          {traceResult.rows.length === 0 ? (
+            <p className="text-[11px] text-slate-600">No causal provenance recorded — this write has no declared causes.</p>
+          ) : (
+            <div className="space-y-1.5">
+              {traceResult.rows.map((r, i) => (
+                <div key={i} className="rounded-lg border border-white/5 bg-black/20 px-3 py-1.5 font-mono text-[11px] text-slate-300">
+                  {r._evidence && (
+                    <span className={`mr-2 rounded px-1 py-0.5 text-[10px] font-semibold ${
+                      r._evidence === "user_message" ? "bg-signal-green/15 text-signal-green" :
+                      r._evidence === "inference"   ? "bg-accent/15 text-accent-soft" :
+                      r._evidence === "tool_result" ? "bg-signal-cyan/15 text-signal-cyan" :
+                      "bg-white/10 text-slate-400"
+                    }`}>{String(r._evidence)}</span>
+                  )}
+                  {r._confidence != null && (
+                    <span className="mr-2 text-slate-600">{Math.round(Number(r._confidence) * 100)}%</span>
+                  )}
+                  {Object.entries(r).filter(([k]) => !k.startsWith("_")).slice(0, 3).map(([k, v]) => (
+                    <span key={k} className="mr-3"><span className="text-slate-600">{k}=</span>{String(v)}</span>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* compiled NQL — the verifiable, editable intermediate (for reads; hidden in Mongo mode) */}
       <div className={lang === "mongo" ? "hidden" : "flex items-center gap-2"}>
         <span className="font-mono text-[11px] uppercase tracking-wide text-slate-500">NQL</span>
@@ -482,6 +593,7 @@ export function QueryConsole({
         ) : (
           <ResultsTable
             result={result}
+            onTrace={runNql ? (row) => void traceRow(row) : undefined}
             onCellEdit={writeExec ? (row, col, val) => {
               const id = String(row._id ?? row.id ?? "");
               if (!id) { setNotice("Error: this row has no _id — can't edit it."); return; }
@@ -552,39 +664,60 @@ function EditableCell({ value, onSave }: { value: string; onSave: (v: string) =>
 function ResultsTable({
   result,
   onCellEdit,
+  onTrace,
 }: {
   result: QueryResult;
   onCellEdit?: (row: Record<string, unknown>, col: string, newValue: string) => void;
+  onTrace?: (row: Record<string, unknown>) => void;
 }): React.ReactElement {
   const cell = (v: unknown): string => (v == null ? "" : typeof v === "object" ? JSON.stringify(v) : String(v));
+  const hasCausal = result.rows.some((r) => r._caused_by != null || r._evidence != null);
   return (
     <div className="overflow-auto">
       <div className="px-3 pt-3 text-[11px] text-slate-500">
         {result.count} row{result.count === 1 ? "" : "s"}{result.note ? ` · ${result.note}` : ""}
-        {onCellEdit ? <span className="ml-2 text-slate-600">· tap any cell to edit</span> : null}
+        {onCellEdit ? <span className="ml-2 text-slate-600">· tap cell to edit</span> : null}
+        {hasCausal && onTrace ? <span className="ml-2 text-accent-soft">· ◈ = has provenance</span> : null}
       </div>
       <table className="w-full border-collapse text-left font-mono text-[12px]">
         <thead>
           <tr className="border-b border-white/10 text-slate-400">
+            {onTrace ? <th className="w-6 px-2 py-2" /> : null}
             {result.columns.map((c) => (
               <th key={c} className="whitespace-nowrap px-3 py-2 font-semibold">{c}</th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {result.rows.slice(0, 100).map((row, i) => (
-            <tr key={i} className="border-b border-white/5 hover:bg-white/5">
-              {result.columns.map((c) => (
-                <td key={c} className="max-w-[260px] px-2 py-1" title={cell(row[c])}>
-                  {onCellEdit && c !== "_id" ? (
-                    <EditableCell value={cell(row[c])} onSave={(v) => onCellEdit(row, c, v)} />
-                  ) : (
-                    <span className="truncate text-slate-200 block px-1">{cell(row[c])}</span>
-                  )}
-                </td>
-              ))}
-            </tr>
-          ))}
+          {result.rows.slice(0, 100).map((row, i) => {
+            const rowHasCausal = row._caused_by != null || row._evidence != null;
+            return (
+              <tr key={i} className="border-b border-white/5 hover:bg-white/5">
+                {onTrace ? (
+                  <td className="px-1 py-1">
+                    {rowHasCausal ? (
+                      <button
+                        onClick={() => onTrace(row)}
+                        title="Trace causal provenance — why does this row exist?"
+                        className="rounded px-1 py-0.5 text-[10px] text-accent-soft transition hover:bg-accent/15 hover:text-white"
+                      >
+                        ◈
+                      </button>
+                    ) : null}
+                  </td>
+                ) : null}
+                {result.columns.map((c) => (
+                  <td key={c} className="max-w-[260px] px-2 py-1" title={cell(row[c])}>
+                    {onCellEdit && c !== "_id" ? (
+                      <EditableCell value={cell(row[c])} onSave={(v) => onCellEdit(row, c, v)} />
+                    ) : (
+                      <span className="truncate text-slate-200 block px-1">{cell(row[c])}</span>
+                    )}
+                  </td>
+                ))}
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
