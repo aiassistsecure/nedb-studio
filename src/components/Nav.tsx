@@ -77,6 +77,44 @@ function NavLink({ href, label }: { href: string; label: string }): React.ReactE
   );
 }
 
+/** Polls /api/settings for the connected nedbd engine type and shows a read-only badge. */
+function EngineBadge(): React.ReactElement | null {
+  const [engine, setEngine] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function poll() {
+      try {
+        const r = await fetch("/api/settings");
+        if (!r.ok || cancelled) return;
+        const d = await r.json() as { connection?: { engine?: string; connected?: boolean } };
+        if (!cancelled) setEngine(d.connection?.connected ? (d.connection?.engine ?? null) : null);
+      } catch { /* server unreachable */ }
+    }
+    poll();
+    const id = setInterval(poll, 15_000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
+
+  if (!engine) return null;
+  const isDAG = engine === "dag";
+  return (
+    <span
+      title={isDAG
+        ? "Connected to nedbd v2 DAG engine — content-addressed, tamper-evident"
+        : "Connected to nedbd v1 AOF engine — start with --dag to use v2 DAG engine"}
+      className={
+        "hidden rounded-full border px-2 py-0.5 font-mono text-[10px] font-semibold tracking-wide sm:inline " +
+        (isDAG
+          ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-400"
+          : "border-amber-500/30 bg-amber-500/10 text-amber-400")
+      }
+    >
+      {isDAG ? "DAG ◆" : "AOF"}
+    </span>
+  );
+}
+
 export function Nav(): React.ReactElement {
   return (
     <header className="glass sticky top-0 z-50 border-b !border-b-[var(--border-1)]"
@@ -98,6 +136,7 @@ export function Nav(): React.ReactElement {
 
         {/* Right actions */}
         <div className="flex items-center gap-2">
+          <EngineBadge />
           <ThemeToggle />
           <Link
             href="/settings"
